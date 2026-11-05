@@ -27,15 +27,23 @@ Out of scope for v1: correcting 3DEP itself, apart from one vertical offset per 
 Coordinates are converted **once**, when points are read, by `ilcd.data_src.points` (section 6). No other module
 handles source CRSs, feet, datums or geoids.
 
+**The horizontal frame is 3DEP's.** Indiana 3DEP was delivered in NAD83(HARN) State Plane, and the public EPT holds
+it in EPSG:3857 with a null datum shift. ilcd undoes that projection with the same null shift: EPSG:3857 → lon/lat
+taken as NAD83 → EPSG:6345. A 2011 delivery decided `nad83` is projected the same way. A delivery decided `itrf` is
+first transformed ITRF2014 → NAD83(2011) at epoch 2011.5. This matches the exploratory code, which compared EPT with
+the original 3DEP files to 0.6 cm. The cm-level HARN–2011 realisation difference is not modelled; it is common to
+both epochs or absorbed by the per-line shifts. Heights: 3DEP is metres, NAVD88/GEOID12B. 2011 is US survey feet,
+NAVD88/GEOID09, and is converted with the NOAA grids named in `data_src.geoid`.
+
 ## 3. Spatial and temporal units
 
 | Unit | What it is | Identified by | Who defines it |
 |---|---|---|---|
 | **file** | One legacy LAZ as published by OT. The same file can be listed in several county folders. | `file_id` | catalog (data_src) |
-| **delivery** | One OT folder `<zone>/<name>`. 50 are named after a county (`West_IN/Monroe`); two are multi-county batches (`East_IN/IN_E_2012`, `West_IN/IN_W_2013`), so 52 folders cover 92 counties. Datum, time encoding and point_source_id conventions are assumed constant within a delivery, and this is checked (section 6.4); they differ between deliveries. | `delivery_id` | catalog |
+| **delivery** | The innermost OT folder that holds LAZ files. There are three shapes: 50 county folders (`West_IN/Monroe`); the flat batch `East_IN/IN_E_2012`; and the batch `West_IN/IN_W_2013`, which has 30 county subfolders (`IN_W_2013/Dubois`). Together they cover all 92 counties. The top-level folder is kept as `batch`. Datum, time encoding and point_source_id conventions are assumed constant within a delivery, which is checked (section 6.4), and differ between deliveries. | `delivery_id` | catalog |
 | **pass** | The points of one file recorded in one continuous stretch of GPS time, split at gaps > 5 s. It is the atomic unit of every legacy error term. | `pass_id` | flightlines |
 | **line** | Passes from different files that belong to one straight flight line. | `line_id` (within a scope) | flightlines |
-| **block** | Lines flown as one acquisition: overlapping in time and space, sharing scan-angle and trend terms. | `block_id` (within a scope) | flightlines |
+| **block** | Lines of one flying season: a time domain split where lines are more than `flightlines.block.max_gap_s` (30 days) apart. A block shares one scan-angle curve and one along-track trend. Carroll 2011 is one block of five sorties over 18 days, which is the setting verified in the exploration. | `block_id` (within a scope) | flightlines |
 | **cell** | A 1 km × 1 km square of the EPSG:6345 grid. Unit of point caching, reference-surface extraction, rasters and products. | `cell_id` | common.grid |
 | **region** | A named work area from `config/regions/<name>.yaml`: a county or polygon plus a buffer. It is a selection of files and cells, used to run and check the pipeline. | region name | config |
 | **scope** | The set of passes linked and solved together: one region, or `statewide`. | `region:<name>` or `statewide` | config |
@@ -62,13 +70,13 @@ All identifiers are strings, deterministic, and parseable by `ilcd.common.ids`.
 
 | ID | Format | Example |
 |---|---|---|
-| `delivery_id` | `<E\|W>_<folder name>` | `W_Monroe`, `E_IN_E_2012`, `E_St_Joseph` |
+| `delivery_id` | `<E\|W>_<folder>`, with `/` in nested folders written as `-` | `W_Monroe`, `E_IN_E_2012`, `W_IN_W_2013-Dubois` |
 | `file_id` | `<E\|W>.<file stem>` | `E.ot_in2012_04152060_12` |
 | `pass_id` | `<file_id>#<k>`, k = 1.. in time order within the file | `W.ot_in2011_31501470_12_1#2` |
 | `cell_id` | `E<easting km, 4 digits>N<northing km, 4 digits>` (lower-left corner) | `E0548N4330` |
 | `patch_id` | `<cell_id>.<kind code><n, 5 digits>` | `E0548N4330.R00017` |
 | `time_domain` | `abs` for adjusted-standard time; `wk:<delivery_id>` for week-seconds deliveries whose week is unknown | `wk:W_Monroe` |
-| `line_id` | `<time_domain>@<start time of its first pass, 0.1 s>` | `abs@-15390699.4` |
+| `line_id` | `<time_domain>@<start time of its first pass, 0.1 s>`, plus `#k` (k = 2, 3, …, in pass_id order) when several lines of a scope start in the same 0.1 s | `abs@-15390699.4`, `abs@50028600.3#2` |
 | `block_id` | `<time_domain>@<start time of its first line, 1 s>#B` | `abs@-15390699#B` |
 
 File names never occur in both zones (checked 2026-11-05), so `zone + stem` is unique. Tile codes alone are not
@@ -100,7 +108,11 @@ unique: 2,816 codes occur in more than one folder, and the East and West grids r
   type, scale and offset, and whether the copies in other folders contain the same points.
 - `deliveries`: one row per OT folder. It records the time type, GPS week if known, datum decision and point_source_id
   meaning.
-- `modern_batches`: one row per 3DEP EPT resource covering Indiana, with its boundary.
+- `modern_batches`: one row per **reference** 3DEP batch, with its boundary. The reference is the 2016–20 statewide
+  program: 13 EPT resources `IN_Statewide_*_2017`, selected by `data_src.ept.reference_batches`. The public EPT
+  bucket also holds the 2011–13 legacy data itself (`IN_Statewide-<County>Co_2011`), 2010–13 county projects and
+  neighbouring states. 144 resources intersect Indiana (checked 2026-11-05), and none of the others may serve as
+  reference.
 
 ### 6.2 Selecting data by geometry
 
@@ -109,7 +121,10 @@ region work area is the footprint plus `data_src.region_buffer_m` (default 1,000
 
 - every `legacy_files` row whose footprint intersects the work area, whatever folder it is in;
 - every cell intersecting the work area;
-- for each cell, every 3DEP batch whose boundary intersects it.
+- for each cell, every reference batch whose boundary intersects it. Where batches overlap at their seams, the
+  per-cell steps use the one batch with the most ground points in the cell (its *primary batch*) and record it on
+  every patch. The model's per-batch vertical offsets tie batches together through the 2011 lines that cross the
+  seams.
 
 ### 6.3 Reading points: `ilcd.data_src.points`
 
@@ -117,7 +132,10 @@ This is the **only** reader of raw point clouds. It is one of two cross-module f
 
 - `read_legacy(cell_id | bounds, classes=..., fields=...)` returns 2011 points in EPSG:6345 + NAVD88/GEOID12B,
   adjusted-standard time where known, with `file_id` and `pass_id` attached.
-  - Points from copies of the same file are de-duplicated on (GPS time, X, Y, Z).
+  - Only the canonical copy of a file is read. Copies in other folders hold the same points; this was checked on
+    Allen/Huntington `04152060`, and `ilcd data_src check-copies` samples more files statewide. If two copies ever
+    differ in their points, they become separate `file_id`s, the copy's folder is appended to the stem, and this rule
+    is revisited.
   - The datum transform comes from the delivery's `datum.json`. A delivery with no decided datum is refused.
 - `read_modern(cell_id | bounds, ...)` returns 3DEP points with the batch id attached. They are fetched from EPT once
   per cell and cached as LAZ.
@@ -137,9 +155,19 @@ each hypothesis it records:
 - the NMAD before and after the shift;
 - the point count.
 
-A hypothesis passes a sample when its residual shift is below `data_src.datum.max_residual_m` (0.3 m). The delivery's
-decision is the hypothesis that passes **every** sample while the other fails at least one. Any other outcome is
-`ambiguous`: data_src stops with an error, and the delivery needs a manual entry in `config/deliveries.yaml`. It is
+The test is **relative**. The two readings differ by a fixed transform, about 1.1 m in Indiana. One flight line's
+own horizontal error can leave a few decimetres of residual shift even under the right reading. That happened at
+W_IN_W_2013-Tippecanoe on 2026-11-05: 0.5 m in one sample against 1.5 m under the other reading. So:
+
+- In each informative sample, the reading whose residual shift is smaller by at least `data_src.datum.min_margin_m`
+  (0.4 m) wins.
+- The decision is the reading that wins every informative sample, with at least `min_informative` (2) of them.
+- Any other outcome is `ambiguous`: data_src stops with an error, and the delivery needs a manual entry in
+  `config/deliveries.yaml`.
+- A winner whose residual exceeds `max_residual_m` (0.3 m) is recorded as a diagnostic. It points to a line-level
+  shift for align to estimate, not to a datum problem.
+
+It is
 also an error when one file, listed in two deliveries, gets a different decision from each.
 
 ## 7. Pipeline and stores
@@ -180,11 +208,18 @@ owner module. Writers validate before writing, and readers validate on reading (
 imports another business module. The exceptions are:
 
 1. `ilcd.common.*`, which any module may use;
-2. `ilcd.data_src.points` (read raw points: section 6.3);
-3. `ilcd.align.apply` (apply a correction model to 2011 points).
+2. the raw-data readers of data_src: `ilcd.data_src.points` (points: section 6.3) and `ilcd.data_src.ancillary`
+   (per-cell ancillary layers such as NAIP NDVI, OSM and CDL);
+3. the **correction-method interface**: `ilcd.align.method` and each correction baseline expose the same three
+   functions:
+   - `fit(design_inputs, params) -> Model`;
+   - `Model.predict(obs)`, the correction at observation rows;
+   - `apply(model, points)`, the correction of 2011 points.
 
-Points are too large to pass through intermediate files, and the model must be applied identically everywhere. Each
-of these exceptions is a single function with a stable signature.
+   eval calls them to refit inside cross-validation folds. change and baselines call `apply` to correct points.
+
+Points are too large to pass through intermediate files. The model must be evaluated identically everywhere, and
+cross-validation must refit it. Each of these exceptions is a small set of functions with a stable signature.
 
 | Module | Owns contracts | Reads |
 |---|---|---|
@@ -242,16 +277,28 @@ Snakemake decides what to re-run. The manifest records what was actually done.
 - **Data tests** (marker `data`, need `ILCD_DATA_ROOT`): module runs on a small fixture area. The fixture is three
   cells at the Monroe/Brown county line, around file `W.ot_in2011_31501470_12_1`. It covers a clipped half-tile, two
   deliveries with different time encodings, overlapping flights and a forested cell with no hard ground.
-- **Acceptance per refactor step**:
-  - **Carroll**: lines match point_source_id with purity 1.00 both ways (31 lines). Stage-1 CV RMS matches a rerun
-    of the old code on the same 31 lines, to within 1 mm.
-  - **Monroe**: same CV checks. The 11 forest and edge tiles that crashed the old code produce passes and, where
-    natural ground exists, observations.
-  - **Bartholomew + Jackson**: first cross-county scope. The East Fork site reproduces or explains the 325 change
-    objects.
+- **Acceptance per refactor step** (results in `acceptance.md`):
+  - **Carroll** (region `carroll_acceptance`, delivery W_Carroll only). Each check isolates one cause of
+    difference from the exploration:
+    1. *Port*: the exploration's own observations, fitted and cross-validated by ilcd (tile folds), must reproduce
+       its numbers exactly.
+    2. *Lines*: lines match point_source_id with purity 1.00 both ways (31 lines).
+    3. *Datum*: W_Carroll is decided `nad83`.
+    4. *Observations*: under the same metric (1 km cell folds and segments), ilcd's observations must give a
+       stage-1 CV RMS no higher than the exploration's.
+
+    Matching the exploration's absolute number is not a criterion. Its tiles (1.5 km) make larger segments
+    than cells, and ilcd's observations differ on purpose: GEOID12B, one 3DEP batch per cell, screening across
+    cells.
+  - **Monroe**: the same checks. In addition, the 11 forest and edge tiles that crashed the old code must produce
+    passes and, where natural ground exists, observations.
+  - **Bartholomew + Jackson**: the first cross-county scope. The East Fork site reproduces or explains the 325
+    change objects.
 
 ## 12. Open questions
 
+- Blocks are flying seasons. Statewide, one along-track trend per season may be too coarse, because it was only
+  verified per county. Test a per-sortie trend in refactor step 6.
 - GPS week of week-seconds deliveries (Monroe): look for acquisition dates in OT/IndianaMap metadata.
 - How many deliveries were flown jointly across county lines: check one boundary tile pair per county line once the
   catalog exists.

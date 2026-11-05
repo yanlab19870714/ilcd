@@ -7,6 +7,11 @@ latency-wait: 60
 retries: 1
 rerun-incomplete: true
 printshellcmds: true
+group-components:              # batch per-file and per-cell steps into fewer Slurm jobs
+  - fetch_file=30
+  - passes_file=30
+  - fetch_cell=20
+  - refs_cell=10
 default-resources:
   slurm_account: CHANGE_ME        # your Slurm account
   slurm_partition: general

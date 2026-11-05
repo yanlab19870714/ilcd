@@ -79,6 +79,7 @@ def test_json_write_validates(tmp_path):
         "scope": "region:carroll",
         "method": "ilcd_two_stage",
         "fold_unit": "cell",
+        "segment_unit": "cell",
         "n_folds": 5,
         "stages": [{"name": "stage1", "rms_m": 0.0355, "nmad_m": 0.03, "n": 1000}],
     }

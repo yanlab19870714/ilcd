@@ -48,8 +48,8 @@ at `/N/project/yanlab_space/indiana_lidar/legacy_code/indiana-lidar_2026-11-05.t
 *Verified* 2026-11-05 from the OT tile index and the bucket listing.
 
 - **Size.** 44,675 LAZ files, 0.51 TB.
-- **Folders.** There are 52 folders: 50 county folders and 2 multi-county batches (`East_IN/IN_E_2012`,
-  `West_IN/IN_W_2013`). They cover all 92 counties.
+- **Folders.** There are 50 county folders and 2 multi-county batches. `East_IN/IN_E_2012` is flat, and
+  `West_IN/IN_W_2013` has 30 county subfolders. Together they cover all 92 counties.
 - **Duplicate names.** 2,152 file names occur in more than one folder. In 517 of them the copies differ in byte size
   but hold the same points; checked on Allen/Huntington `04152060`: 3,044,328 points, 100% identical.
 - **Tile codes are not unique.** 2,816 codes occur in more than one folder, and the East and West State Plane grids

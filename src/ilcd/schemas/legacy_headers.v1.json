@@ -1,7 +1,7 @@
 {
   "contract": "legacy_headers", "version": 1, "kind": "table", "owner": "data_src", "status": "draft",
-  "description": "Facts read from each legacy file when it is first fetched.",
-  "path": "statewide/catalog/legacy_headers.parquet",
+  "description": "Facts read from each legacy file when it is first fetched. Written as one row per file, then concatenated statewide.",
+  "path": ["files/{file_id}/legacy_header.parquet", "statewide/catalog/legacy_headers.parquet"],
   "key": ["file_id"],
   "columns": [
     {"name": "file_id", "type": "string"},

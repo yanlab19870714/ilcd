@@ -5,6 +5,8 @@
 
 data_src:
   region_buffer_m: 1000.0         # work area = region footprint buffered by this
+  only_deliveries: []             # non-empty: the region uses only files of these deliveries (acceptance runs
+                                  # that must match a single-delivery exploration result); empty = all
   legacy_bucket: https://opentopography.s3.sdsc.edu/pc-bulk/IN_2011_2013
   ept_boundaries: https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson
   counties: https://www2.census.gov/geo/tiger/GENZ2023/shp/cb_2023_us_county_500k.zip
@@ -12,17 +14,36 @@ data_src:
   max_parallel_downloads: 8       # OT and EPT; rockyweb is never used (it blocks Big Red, HTTP 429)
   datum:
     n_samples: 3                  # sample cells per delivery
-    max_residual_m: 0.30          # a hypothesis passes a sample when its residual shift is below this
-    search_radius_m: 1.5          # grid search of the residual shift
-    search_step_m: 0.05
+    min_margin_m: 0.40            # in a sample, one reading wins when its residual shift is this much smaller
+    min_informative: 2            # informative samples needed for a decision; all must have the same winner
+    max_residual_m: 0.30          # diagnostic only: residual of the winner above this flags a line-level shift
+    coarse_step_m: 0.5            # two-stage grid search of the residual shift; old: pair_diagnostics.main
+    coarse_span_m: 4.0
+    fine_step_m: 0.1
+    fine_span_m: 0.6
+    max_points: 250000            # 2011 ground points sampled per cell
+    probe_m: 1.0                  # a sample counts when, under both hypotheses, moving this far from the best shift
+    min_sharpness: 0.02           # in x or y raises NMAD by at least this share. PROVISIONAL (flat cells fail)
     itrf_epoch: 2011.5            # old: pair_diagnostics.transform_2011
   geoid:
-    legacy: GEOID09               # 2011-13 heights; converted to GEOID12B (about 1.6 cm here)
-    project: GEOID12B
+    legacy_grid: us_noaa_geoid09_conus.tif   # 2011-13 heights are NAVD88/GEOID09 in US survey feet
+    project_grid: us_noaa_g2012bu0.tif       # converted to GEOID12B (0.7 cm at Monroe)
+  points:
+    noise_classes: [7, 18]
+    z_below_ground_m: 3.0         # keep z within [ground p0.1 - this, ground p99.9 + z_above]; old: pair_diagnostics.load
+    z_above_ground_m: 60.0
+    read_pad_m: 20.0              # margin around a cell when reading points
+  ept:
+    base_url: https://s3-us-west-2.amazonaws.com/usgs-lidar-public
+    pad_m: 20.0
+    # The reference: the 2016-20 Indiana statewide 3DEP program (IN_Indiana_Statewide_LiDAR_2017_B17), 13 batches.
+    # The public EPT bucket also holds the 2011-13 legacy data itself, 2010-13 county projects and neighbouring
+    # states; none of them may serve as reference (checked 2026-11-05: 144 resources intersect Indiana).
+    reference_batches: "^IN_Statewide_(B[12]|Opt1_B[1-5]|Opt2_B[1-6])_2017$"
 
 flightlines:
   gap_s: 5.0                      # GPS-time gap that starts a new pass; old: swath_analysis.GAP
-  min_pass_points: 200            # passes with fewer points are kept but not linked or measured
+  min_pass_points: 0              # passes with fewer points are not linked (0: all, as the verified exploration rule)
   link:
     max_turn_deg: 20.0            # old: link_lines.MAX_TURN
     max_span_s: 900.0             # old: link_lines.MAX_SPAN
@@ -33,7 +54,8 @@ flightlines:
     min_points: 200
     min_span_share: 0.5
   block:
-    max_gap_s: 3600.0             # PROVISIONAL: lines further apart in time start a new block
+    max_gap_s: 2592000.0          # 30 days: a block is one flying season (Carroll 2011: five sorties over 18 days,
+                                  # one scan-angle curve verified). PROVISIONAL statewide (see design.md section 12)
   class12_ground_tol_m: 0.3       # class-12 overlap points this close to the ground surface count as ground; old: swath_analysis.GROUND_TOL
 
 refs:
@@ -45,7 +67,13 @@ refs:
     min_single_share: 0.85
     max_slope_deg: 15.0
     min_area_m2: 20.0
-    ndvi_quantile: 0.90           # NDVI cut = this quantile of 3DEP ground on OSM motor roads
+    ndvi_year: 2018               # NAIP year for the vegetation test
+    ndvi_cut: -0.10               # hard ground needs mean NDVI below this; old runs 2026-10-22/23 ("naip2018, cut
+                                  # -0.10, no OSM"; matches 88% of the GIO 2016 hard ground on tile 31101425)
+    ndvi_quantile: 0.90           # not used yet: with OSM, calibrate the cut as this quantile of ground on motor roads
+    object_hag_m: 0.3             # a point this far above the 3DEP DTM counts as an object
+    narrow_half_width_m: 8.0      # old patch_class.HALF_W
+    narrow_wide_share: 0.2        # narrow = fewer than this share of cells deeper than the half width; old WIDE_SHARE
   roof:                           # old: patches_v2 R_*, measure_patches
     min_hag_m: 2.5
     min_points: 10
@@ -64,16 +92,27 @@ refs:
   slope:                          # sloped natural ground for the horizontal-shift term; old: hshift_fit
     min_slope_deg: 10.0
     max_dz_m: 3.0
-  screen:
-    water_buffer_m: 100.0         # banks move; old: fit_field.WATER_BUF
-    cell_gross_m: 0.30            # cell median beyond this from its neighbours = real change; old: fit_field.GROSS_TILE
-    use_cdl: true                 # exclude cropland patches (not implemented in the old code)
-  obs:
-    min_legacy_points: 20
+  screen:                         # per scope, across cells; old: measure_patches.flag_change, fit_field.load
+    near_m: 200.0                 # neighbours of a patch for the change test
+    min_neighbours: 5
+    min_points: 20                # patches with fewer pooled 2011 points are neither tested nor used as neighbours
+    flag_k: 3.0                   # flag |offset - neighbour median| > max(flag_min_m, flag_k sqrt(se^2 + scatter^2))
+    flag_min_m: 0.05
+    sys_sd_m: 0.015               # floor of the patch-to-patch scatter, and weight floor
+    cell_gross_m: 0.30            # cell median this far from the scope median = real change; old: fit_field.GROSS_TILE
+    water_buffer_m: 100.0         # banks move; old: fit_field.WATER_BUF (needs OSM water; not applied yet)
+    use_cdl: true                 # exclude cropland patches (not implemented in the old code; not applied yet)
+  obs:                            # old: patch_scan.py, measure_patches.py
+    classes: [2, 12]              # 2011 classes measured on hard ground (class-12 overlap points included)
+    outlier_m: 0.30               # drop points farther than this from the cell median residual
+    min_points: 10                # per (patch, pass); old PASS_MIN
 
 align:
   stage1:
+    sys_sd_m: 0.015               # observation weight = 1 / (sigma^2 + sys_sd^2); old: fit_roll.SYS
     scan_knots: 8                 # cubic B-spline knots in scan angle, per block; old: fit_scan S_8
+    scan_range_pct: [0.5, 99.5]   # knots span these percentiles of the block's scan angles
+    ridge: 0.001                  # on the spline, removes the constant it shares with the line offsets
     trend: block                  # one along-track trend per block (per-line trends overfit)
     hshift_min_points: 1000       # fewer sloped points -> the line uses its block's mean shift (v3d)
   stage2:
@@ -87,7 +126,9 @@ eval:
   cv:
     folds: 5                      # old: fit_field.FOLDS
     repeats: 10
-    fold_unit: cell
+    fold_unit: cell               # cell | patch | file | patch_file. file folds leak: a patch crossing a file boundary
+                                  # is seen by passes of both files; the others keep each patch on one side
+    segment_unit: cell            # same choices; patch_file = the exploration's tile x pass segments
   injection:
     radii_m: [50.0, 100.0, 200.0, 500.0, 1000.0]   # old: fit_field.INJECT_R
     amount_m: 0.10

@@ -3,10 +3,10 @@
   "description": "Cross-validation of a model: folds by cell, RMS of held-out (patch x pass) residuals for each model stage.",
   "path": "{scope}/eval/cv.json",
   "schema": {
-    "type": "object", "required": ["scope", "method", "fold_unit", "n_folds", "stages"], "additionalProperties": false,
+    "type": "object", "required": ["scope", "method", "fold_unit", "segment_unit", "n_folds", "stages"], "additionalProperties": false,
     "properties": {
       "scope": {"type": "string"}, "method": {"type": "string"},
-      "fold_unit": {"enum": ["cell", "patch"]}, "n_folds": {"type": "integer"},
+      "fold_unit": {"enum": ["cell", "patch", "file", "patch_file"]}, "segment_unit": {"enum": ["cell", "patch", "file", "patch_file"]}, "n_folds": {"type": "integer"},
       "stages": {"type": "array", "items": {"type": "object", "required": ["name", "rms_m", "nmad_m", "n"], "additionalProperties": false,
         "properties": {"name": {"type": "string", "description": "e.g. none, line_offset, stage1, stage2"}, "rms_m": {"type": "number"}, "nmad_m": {"type": "number"}, "n": {"type": "integer"}}}}
     }

@@ -1,0 +1,34 @@
+{
+  "contract": "screen",
+  "version": 1,
+  "kind": "table",
+  "owner": "refs",
+  "status": "draft",
+  "description": "Screening of a scope's patches that needs neighbours across cells: a patch whose pooled 2011 offset departs from the weighted median of patches within refs.screen.near_m (old measure_patches.flag_change), and cells whose median offset is more than refs.screen.cell_gross_m from the scope median (quarries, earthworks; old fit_field.GROSS_TILE). Patches not listed are not excluded.",
+  "path": "{scope}/refs/screen.parquet",
+  "key": [
+    "patch_id"
+  ],
+  "columns": [
+    {
+      "name": "patch_id",
+      "type": "string"
+    },
+    {
+      "name": "reason",
+      "type": "string",
+      "enum": [
+        "change_suspect",
+        "gross_cell",
+        "water"
+      ]
+    },
+    {
+      "name": "deviation_m",
+      "type": "float32",
+      "unit": "m",
+      "nullable": true,
+      "description": "Offset minus neighbour median (change_suspect) or cell median minus scope median (gross_cell)"
+    }
+  ]
+}

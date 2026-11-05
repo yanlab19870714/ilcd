@@ -1,6 +1,6 @@
 {
   "contract": "datum", "version": 1, "kind": "json", "owner": "data_src", "status": "draft",
-  "description": "Horizontal datum test of one delivery: residual shift to 3DEP under both readings of the WGS84 label, at several sample areas. The decision is the hypothesis that passes every sample while the other fails one; otherwise ambiguous.",
+  "description": "Horizontal datum test of one delivery: residual shift to 3DEP under both readings of the WGS84 label, at several sample areas. In each informative sample the reading with the clearly smaller residual (by data_src.datum.min_margin_m) wins; the decision is the reading that wins every informative sample (at least min_informative), otherwise ambiguous.",
   "path": "statewide/deliveries/{delivery_id}/datum.json",
   "schema": {
     "type": "object",
@@ -14,11 +14,13 @@
       "samples": {
         "type": "array", "minItems": 1,
         "items": {
-          "type": "object", "required": ["cell_id", "files", "surface", "itrf", "nad83"], "additionalProperties": false,
+          "type": "object", "required": ["cell_id", "files", "surface", "informative", "itrf", "nad83"], "additionalProperties": false,
           "properties": {
             "cell_id": {"type": "string"},
             "files": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "file_ids used"},
             "surface": {"enum": ["roofs", "ground"]},
+            "winner": {"enum": ["itrf", "nad83", null], "description": "Reading with the clearly smaller residual shift; null if not informative or too close"},
+            "informative": {"type": "boolean", "description": "Under both hypotheses the NMAD minimum is sharp (sharpness >= data_src.datum.min_sharpness); flat cells cannot locate a shift and do not count"},
             "itrf": {"$ref": "#/$defs/hypothesis"},
             "nad83": {"$ref": "#/$defs/hypothesis"}
           }
@@ -28,7 +30,7 @@
     "$defs": {
       "hypothesis": {
         "type": "object", "additionalProperties": false,
-        "required": ["dx_m", "dy_m", "dz_m", "nmad_before_m", "nmad_after_m", "n_points", "passes"],
+        "required": ["dx_m", "dy_m", "dz_m", "nmad_before_m", "nmad_after_m", "n_points", "passes", "sharpness"],
         "properties": {
           "dx_m": {"type": "number", "description": "Residual east shift 2011 -> 3DEP after this hypothesis's transform"},
           "dy_m": {"type": "number"},
@@ -36,7 +38,8 @@
           "nmad_before_m": {"type": "number"},
           "nmad_after_m": {"type": "number"},
           "n_points": {"type": "integer", "minimum": 0},
-          "passes": {"type": "boolean", "description": "hypot(dx_m, dy_m) < max_residual_m"}
+          "passes": {"type": "boolean", "description": "Diagnostic: hypot(dx_m, dy_m) < max_residual_m (a larger residual under the winning reading points to a line-level horizontal error)"},
+          "sharpness": {"type": "number", "description": "Smallest relative NMAD rise data_src.datum.probe_m away from the best shift in x or y"}
         }
       }
     }

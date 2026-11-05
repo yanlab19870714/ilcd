@@ -1,13 +1,45 @@
 {
-  "contract": "model_members", "version": 1, "kind": "table", "owner": "align", "status": "draft",
+  "contract": "model_members",
+  "version": 1,
+  "kind": "table",
+  "owner": "align",
+  "status": "draft",
   "description": "Side file of a model: every pass the model corrects, its time range and line. apply() finds a 2011 point's pass from (file_id, GPS time).",
   "path": "{scope}/align/model/members.parquet",
-  "key": ["pass_id"],
+  "key": [
+    "pass_id"
+  ],
   "columns": [
-    {"name": "pass_id", "type": "string"},
-    {"name": "file_id", "type": "string"},
-    {"name": "t_start_s", "type": "float64", "unit": "s"},
-    {"name": "t_end_s", "type": "float64", "unit": "s"},
-    {"name": "line_id", "type": "string"}
+    {
+      "name": "pass_id",
+      "type": "string"
+    },
+    {
+      "name": "file_id",
+      "type": "string"
+    },
+    {
+      "name": "t_start_s",
+      "type": "float64",
+      "unit": "s"
+    },
+    {
+      "name": "t_end_s",
+      "type": "float64",
+      "unit": "s"
+    },
+    {
+      "name": "line_id",
+      "type": "string"
+    },
+    {
+      "name": "axis",
+      "type": "string",
+      "enum": [
+        "ns",
+        "ew"
+      ],
+      "description": "Along-track axis of the pass: ns when its heading is within 45 deg of north or south"
+    }
   ]
 }

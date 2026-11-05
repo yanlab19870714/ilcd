@@ -133,7 +133,9 @@ def test_projected_check_only_looks_at_requested_columns():
 
 def test_check_json_datum():
     c = contracts.get("datum")
-    hyp = dict(dx_m=0.7, dy_m=-0.83, dz_m=0.0, nmad_before_m=0.3, nmad_after_m=0.1, n_points=1000, passes=False)
+    hyp = dict(
+        dx_m=0.7, dy_m=-0.83, dz_m=0.0, nmad_before_m=0.3, nmad_after_m=0.1, n_points=1000, passes=False, sharpness=0.1
+    )
     doc = dict(
         delivery_id="W_Monroe",
         decision="itrf",
@@ -144,6 +146,7 @@ def test_check_json_datum():
                 cell_id="E0548N4330",
                 files=["W.x"],
                 surface="roofs",
+                informative=True,
                 itrf={**hyp, "dx_m": 0.02, "dy_m": 0.01, "passes": True},
                 nad83=hyp,
             )

@@ -1,0 +1,12 @@
+{
+  "contract": "selection", "version": 1, "kind": "table", "owner": "data_src", "status": "draft",
+  "description": "The legacy files and cells of a region's work area (footprint + data_src.region_buffer_m). in_core: the unit intersects the footprint itself, not only the buffer.",
+  "path": "{scope}/data_src/selection.parquet",
+  "key": ["unit", "unit_id"],
+  "columns": [
+    {"name": "unit", "type": "string", "enum": ["file", "cell"]},
+    {"name": "unit_id", "type": "string", "description": "file_id or cell_id"},
+    {"name": "in_core", "type": "bool"},
+    {"name": "delivery_id", "type": "string", "nullable": true, "description": "Canonical delivery of a file; null for cells"}
+  ]
+}

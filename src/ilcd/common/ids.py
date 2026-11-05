@@ -21,14 +21,15 @@ PATCH_KINDS = {
 }
 _KIND_OF_CODE = {v: k for k, v in PATCH_KINDS.items()}
 
-_DELIVERY = re.compile(r"^([EW])_([A-Za-z0-9_]+)$")
+_NAME = r"[A-Za-z0-9_]+"
+_DELIVERY = re.compile(rf"^([EW])_({_NAME}(?:-{_NAME})?)$")  # nested folders: IN_W_2013/Dubois -> IN_W_2013-Dubois
 _FILE = re.compile(r"^([EW])\.([A-Za-z0-9_]+)$")
 _PASS = re.compile(r"^([EW]\.[A-Za-z0-9_]+)#([1-9][0-9]*)$")
 _CELL = re.compile(r"^E([0-9]{4})N([0-9]{4})$")
 _PATCH = re.compile(r"^(E[0-9]{4}N[0-9]{4})\.([A-Z])([0-9]{5})$")
-_DOMAIN = re.compile(r"^(abs|wk:[EW]_[A-Za-z0-9_]+)$")
-_LINE = re.compile(r"^(abs|wk:[EW]_[A-Za-z0-9_]+)@(-?[0-9]+\.[0-9])$")
-_BLOCK = re.compile(r"^(abs|wk:[EW]_[A-Za-z0-9_]+)@(-?[0-9]+)#B$")
+_DOMAIN = re.compile(rf"^(abs|wk:[EW]_{_NAME}(?:-{_NAME})?)$")
+_LINE = re.compile(rf"^(abs|wk:[EW]_{_NAME}(?:-{_NAME})?)@(-?[0-9]+\.[0-9])(?:#([2-9]|[1-9][0-9]+))?$")
+_BLOCK = re.compile(rf"^(abs|wk:[EW]_{_NAME}(?:-{_NAME})?)@(-?[0-9]+)#B$")
 _REGION = re.compile(r"^[a-z][a-z0-9_]*$")
 
 CELL_KM = 1
@@ -45,16 +46,17 @@ def _match(pattern, value, what):
 
 
 def delivery_id(zone_dir: str, folder: str) -> str:
-    """`West_IN`, `Monroe` -> `W_Monroe`."""
+    """OT folder below the zone -> delivery id: `West_IN`, `Monroe` -> `W_Monroe`;
+    `West_IN`, `IN_W_2013/Dubois` -> `W_IN_W_2013-Dubois` (the 2013 batch has county subfolders)."""
     if zone_dir not in ZONE_DIRS:
         raise ValueError(f"unknown OT zone folder {zone_dir!r}")
-    return _match(_DELIVERY, f"{ZONE_DIRS[zone_dir]}_{folder}", "delivery_id").group(0)
+    return _match(_DELIVERY, f"{ZONE_DIRS[zone_dir]}_{folder.replace('/', '-')}", "delivery_id").group(0)
 
 
 def parse_delivery(value: str) -> tuple[str, str]:
-    """`W_Monroe` -> (`West_IN`, `Monroe`)."""
+    """`W_IN_W_2013-Dubois` -> (`West_IN`, `IN_W_2013/Dubois`)."""
     m = _match(_DELIVERY, value, "delivery_id")
-    return ZONE_NAMES[m.group(1)], m.group(2)
+    return ZONE_NAMES[m.group(1)], m.group(2).replace("-", "/")
 
 
 def file_id(zone_dir: str, filename: str) -> str:
@@ -101,11 +103,14 @@ def check_time_domain(value: str) -> str:
     return _match(_DOMAIN, value, "time_domain").group(0)
 
 
-def line_id(domain: str, t_start_s: float) -> str:
+def line_id(domain: str, t_start_s: float, k: int = 1) -> str:
+    """k > 1 disambiguates lines of one scope that start in the same 0.1 s (k-th in pass_id order)."""
     check_time_domain(domain)
     if not math.isfinite(t_start_s):
         raise ValueError("line start time must be finite")
-    return f"{domain}@{t_start_s:.1f}"
+    if int(k) != k or k < 1:
+        raise ValueError(f"line index must be a positive integer, got {k!r}")
+    return f"{domain}@{t_start_s:.1f}" + (f"#{int(k)}" if k > 1 else "")
 
 
 def parse_line(value: str) -> tuple[str, float]:

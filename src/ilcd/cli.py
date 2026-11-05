@@ -143,6 +143,21 @@ def main(argv=None):
     c.add_parser("docs").set_defaults(fn=_docs)
     g = sub.add_parser("config").add_subparsers(dest="sub", required=True)
     g.add_parser("check").set_defaults(fn=_config_check)
+    from .data_src import cli as data_src_cli
+
+    data_src_cli.register(sub)
+    from .flightlines import cli as flightlines_cli
+
+    flightlines_cli.register(sub)
+    from .refs import cli as refs_cli
+
+    refs_cli.register(sub)
+    from .align import cli as align_cli
+
+    align_cli.register(sub)
+    from .eval import cli as eval_cli
+
+    eval_cli.register(sub)
     args = ap.parse_args(argv)
     return args.fn(args) or 0
 

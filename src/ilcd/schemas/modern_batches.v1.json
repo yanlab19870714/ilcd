@@ -1,6 +1,6 @@
 {
   "contract": "modern_batches", "version": 1, "kind": "vector", "owner": "data_src", "status": "draft",
-  "description": "3DEP EPT resources (usgs-lidar-public) intersecting Indiana.",
+  "description": "Reference 3DEP batches: EPT resources (usgs-lidar-public) matching data_src.ept.reference_batches that intersect Indiana.",
   "path": "statewide/catalog/modern_batches.parquet",
   "key": ["batch"],
   "geometry": {"type": "MultiPolygon", "crs": "EPSG:6345"},

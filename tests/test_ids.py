@@ -7,6 +7,11 @@ def test_delivery_and_file_round_trip():
     assert ids.delivery_id("West_IN", "Monroe") == "W_Monroe"
     assert ids.delivery_id("East_IN", "IN_E_2012") == "E_IN_E_2012"
     assert ids.parse_delivery("E_St_Joseph") == ("East_IN", "St_Joseph")
+    nested = ids.delivery_id("West_IN", "IN_W_2013/Dubois")
+    assert nested == "W_IN_W_2013-Dubois"
+    assert ids.parse_delivery(nested) == ("West_IN", "IN_W_2013/Dubois")
+    assert ids.time_domain("week_seconds", nested, None) == f"wk:{nested}"
+    assert ids.parse_line(ids.line_id(f"wk:{nested}", 5.0)) == (f"wk:{nested}", 5.0)
     f = ids.file_id("West_IN", "ot_in2011_31501470_12_1.laz")
     assert f == "W.ot_in2011_31501470_12_1"
     assert ids.parse_file(f) == ("West_IN", "ot_in2011_31501470_12_1.laz")
@@ -33,6 +38,7 @@ def test_time_domain_and_lines():
     assert line == "abs@-15390699.4"
     assert ids.parse_line(line) == ("abs", -15390699.4)
     assert ids.parse_line(ids.line_id("wk:W_Monroe", 147078.04)) == ("wk:W_Monroe", 147078.0)
+    assert ids.line_id("abs", 5.0, 2) == "abs@5.0#2" and ids.parse_line("abs@5.0#2") == ("abs", 5.0)
     assert ids.block_id("abs", -15390699.4) == "abs@-15390700#B"  # floor, also for negative times
     assert ids.parse_block("wk:W_Monroe@147078#B") == ("wk:W_Monroe", 147078)
     with pytest.raises(ValueError):

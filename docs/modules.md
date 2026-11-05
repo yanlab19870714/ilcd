@@ -14,11 +14,11 @@ data_src ──► flightlines ──► refs ──► align ──► eval
 | Module | One-line job | Unit of work | Writes | Status |
 |---|---|---|---|---|
 | `common` | IDs, grid, CRS, time, paths, contracts, I/O, config, manifests | — | manifests | **implemented** |
-| `data_src` | Catalogs, downloads, datum per delivery, the raw point reader | statewide, delivery, cell | `legacy_files`, `legacy_headers`, `deliveries`, `modern_batches`, `datum` | planned (step 2) |
-| `flightlines` | Passes per file; lines and blocks per scope | file, scope | `passes`, `lines`, `line_members`, `blocks` | planned (step 2) |
-| `refs` | Stable reference surfaces and their observations | cell | `patches`, `obs`, `overlap_obs` | planned (step 2) |
-| `align` | Fit and apply the correction model | scope | `model` | planned (step 2) |
-| `eval` | Cross-validation, overlap check, injection, status, change scores | scope, site | `cv`, `status`, `injection`, `overlap_check`, `change_eval` | planned (steps 2, 5) |
+| `data_src` | Catalogs, downloads, datum per delivery, the raw point and ancillary readers | statewide, delivery, cell | `legacy_files`, `legacy_headers`, `deliveries`, `modern_batches`, `datum`, `selection` | **implemented** (OSM and CDL layers: later) |
+| `flightlines` | Passes per file; lines and blocks per scope | file, scope | `passes`, `lines`, `line_members`, `blocks` | **implemented** |
+| `refs` | Stable reference surfaces and their observations | cell, scope | `patches`, `obs`, `overlap_obs`, `screen` | **hard ground implemented**; roofs, natural and sloped ground: later |
+| `align` | Fit and apply the correction model | scope | `model` | **stage 1 implemented**; stage 2, horizontal shift, overlap ties, apply: later |
+| `eval` | Cross-validation, overlap check, injection, status, change scores | scope, site | `cv`, `status`, `injection`, `overlap_check`, `change_eval` | **cv implemented**; the rest: later |
 | `change` | DoD, M3C2, change objects | cell, site | `dod`, `m3c2`, `objects` | planned (step 4) |
 | `viz_label` | 3D scenes, BEV page, QGIS export, labels | site | `labels`, pages | planned (step 4) |
 | `baselines` | Other methods, written to the same contracts | scope, site | as align/change | planned (step 5) |
@@ -48,10 +48,12 @@ data_src ──► flightlines ──► refs ──► align ──► eval
 
 ## Refactor steps
 
-1. **Repository skeleton**: environments, `common`, all contracts, configs, docs. *(this commit)*
-2. **data_src → flightlines → refs → align → eval on Carroll.**
+1. **Repository skeleton**: environments, `common`, all contracts, configs, docs. *(done)*
+2. **data_src → flightlines → refs → align → eval on Carroll.** *(stage 1 accepted 2026-11-05, see acceptance.md;
+   stage 2, horizontal shift and the remaining refs surfaces follow)*
    - Lines must match point_source_id (purity 1.00 both ways).
-   - Stage-1 CV must match a rerun of the old code on the same 31 lines.
+   - The old observations run through ilcd reproduce the old CV exactly. Under the same metric, ilcd's own
+     observations do no worse (design.md section 11).
 3. **Monroe.** Week-seconds time, ITRF datum, forest cells, the clipped county-line files.
 4. **Bartholomew + Jackson**: the first cross-county scope.
    - change and viz_label on site `eastfork_doug`.

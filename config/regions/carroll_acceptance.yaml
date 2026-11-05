@@ -1,0 +1,14 @@
+name: carroll_acceptance
+description: >-
+  Carroll County restricted to delivery W_Carroll, the 469 files of the exploration runs, so that ilcd can be compared
+  with the old code one to one (docs/design.md section 11). Not a production region; use `carroll`.
+footprint:
+  county: Carroll
+params:
+  data_src:
+    only_deliveries: [W_Carroll]
+notes:
+  - "Baseline (old code, 31 lines re-linked, runs/2026-11-05_carroll_baseline31): tile x pass CV RMS M3 3.92 cm, S_8 3.56 cm."
+  - "With the 37 over-split lines of 2026-10-23 (runs/2026-11-05_carroll_baseline37): M3 3.86 cm, S_8 3.56 cm."
+  - "Accepted 2026-11-05, see docs/acceptance.md: same observations reproduce 3.92/3.56 exactly; under the 1 km cell
+    metric ilcd's observations give 3.87 cm (stage 1) against 4.11 cm for the exploration's."

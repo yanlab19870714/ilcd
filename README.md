@@ -64,6 +64,7 @@ Documentation:
 - [docs/contracts.md](docs/contracts.md): every file format.
 - [docs/runbook.md](docs/runbook.md): setup and running.
 - [docs/history.md](docs/history.md): what the exploratory phase found.
+- [docs/acceptance.md](docs/acceptance.md): the acceptance checks of each refactor step and their results.
 
 ## Data sources
 
