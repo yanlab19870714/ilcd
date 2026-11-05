@@ -1,0 +1,20 @@
+{
+  "contract": "legacy_files", "version": 1, "kind": "vector", "owner": "data_src", "status": "draft",
+  "description": "One row per distinct 2011-13 legacy file (OT IN_2011_2013), from the OT tile index and bucket listing. Footprint in EPSG:6345.",
+  "path": "statewide/catalog/legacy_files.parquet",
+  "key": ["file_id"],
+  "geometry": {"type": "Polygon", "crs": "EPSG:6345"},
+  "columns": [
+    {"name": "file_id", "type": "string", "description": "<E|W>.<file stem>"},
+    {"name": "zone", "type": "string", "enum": ["E", "W"], "description": "State Plane zone of the OT folder (East_IN / West_IN)"},
+    {"name": "filename", "type": "string"},
+    {"name": "tile_code", "type": "string", "description": "8-digit code in the name: lower-left State Plane corner in kft. Not unique statewide."},
+    {"name": "year_tag", "type": "int16", "description": "Year in the name (in2011/in2012/in2013)"},
+    {"name": "delivery_id", "type": "string", "description": "Canonical delivery (first folder alphabetically)"},
+    {"name": "other_deliveries", "type": "list<string>", "description": "Other folders listing a file of the same name"},
+    {"name": "url", "type": "string", "description": "Canonical download URL"},
+    {"name": "copy_sizes_differ", "type": "bool", "description": "Copies in other folders have a different byte size (content checked in legacy_headers)"},
+    {"name": "size_bytes", "type": "int64", "unit": "B"},
+    {"name": "geometry", "type": "geometry", "description": "Footprint from the OT tile index (bounding box of the data, so clipped files are narrow)"}
+  ]
+}

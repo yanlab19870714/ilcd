@@ -1,0 +1,35 @@
+# ilcd workflow. Each rule runs one `ilcd <module> <command>`; rules live in rules/<module>.smk and are added as the
+# modules are implemented (docs/runbook.md). Data paths come from ilcd.common.paths, never from strings here.
+#
+# Wildcards (docs/design.md sections 3-4):
+#   {file_id}  per legacy file   files/{file_id}/...
+#   {cell_id}  per 1 km cell     cells/{cell_id}/...
+#   {scope}    region:<name> or statewide
+#   {site}     per site          sites/{site}/...
+#
+# Usage:  snakemake --profile config/profiles/<machine> --config region=carroll <target>
+import os
+
+from ilcd.common import config as ilcd_config
+
+if "ILCD_DATA_ROOT" not in os.environ:
+    raise WorkflowError("set ILCD_DATA_ROOT (docs/runbook.md)")
+
+REGION = config.get("region")
+if REGION is not None:
+    ilcd_config.load_region(REGION)  # fails early on a bad region file
+
+# include: "rules/data_src.smk"      (refactor step 2)
+# include: "rules/flightlines.smk"
+# include: "rules/refs.smk"
+# include: "rules/align.smk"
+# include: "rules/eval.smk"
+# include: "rules/change.smk"        (refactor step 4)
+# include: "rules/viz_label.smk"
+# include: "rules/baselines.smk"     (refactor step 5)
+
+
+rule config_check:
+    """Validate every region, site and delivery override."""
+    shell:
+        "ilcd config check"

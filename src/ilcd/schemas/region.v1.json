@@ -1,0 +1,21 @@
+{
+  "contract": "region", "version": 1, "kind": "json", "owner": "config", "status": "draft",
+  "description": "A region config (config/regions/<name>.yaml): a named work area. A county or a polygon, plus a buffer; parameter overrides only under params.",
+  "path": "config/regions/{region}.yaml",
+  "schema": {
+    "type": "object", "required": ["name", "footprint"], "additionalProperties": false,
+    "properties": {
+      "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+      "description": {"type": "string"},
+      "footprint": {
+        "type": "object", "additionalProperties": false, "minProperties": 1, "maxProperties": 1,
+        "properties": {
+          "county": {"type": "string", "description": "Indiana county name as in the Census file"},
+          "polygon": {"type": "string", "description": "Path to a GeoJSON polygon, relative to the config directory"}
+        }
+      },
+      "params": {"type": "object", "description": "Overrides of src/ilcd/config/defaults.yaml, same nesting; unknown keys are errors"},
+      "notes": {"type": "array", "items": {"type": "string"}}
+    }
+  }
+}

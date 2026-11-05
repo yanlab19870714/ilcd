@@ -1,0 +1,48 @@
+{
+  "contract": "model", "version": 1, "kind": "json", "owner": "align", "status": "draft",
+  "description": "A legacy correction model of one scope (align, or a baseline method). Lives in a directory with members.parquet (pass -> line, with pass time ranges) and, for stage 2, stage2.npz. ilcd.align.apply is the only code that evaluates it. Correction subtracted from a 2011 point of pass p on line l in block b: dz0[l] + trend[b] * along + spline_b(scan) + field_l(x, y) + modern offset; horizontal: fwd/left shift of l rotated by its heading.",
+  "path": "{scope}/align/model/model.json",
+  "schema": {
+    "type": "object",
+    "required": ["method", "scope", "crs", "terms", "lines", "blocks", "modern", "fit", "files"],
+    "additionalProperties": false,
+    "properties": {
+      "method": {"type": "string", "description": "ilcd_two_stage or a baseline name"},
+      "scope": {"type": "string"},
+      "crs": {"const": "EPSG:6345+5703"},
+      "terms": {"type": "array", "items": {"enum": ["line_offset", "block_trend", "block_scan_spline", "line_hshift", "line_field", "modern_offset"]}, "uniqueItems": true},
+      "lines": {
+        "type": "object", "description": "keyed by line_id",
+        "additionalProperties": {
+          "type": "object", "required": ["dz0_m", "x0_m", "y0_m", "heading_deg", "block_id"], "additionalProperties": false,
+          "properties": {
+            "dz0_m": {"type": "number"},
+            "fwd_m": {"type": "number"}, "left_m": {"type": "number"},
+            "hshift_pooled": {"type": "boolean", "description": "true when the line had too few sloped points and uses its block's mean shift"},
+            "x0_m": {"type": "number"}, "y0_m": {"type": "number"}, "heading_deg": {"type": "number"},
+            "block_id": {"type": "string"}
+          }
+        }
+      },
+      "blocks": {
+        "type": "object", "description": "keyed by block_id",
+        "additionalProperties": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "trend_m_per_km": {"type": "number"},
+            "scan_spline": {"type": "object", "required": ["knots_deg", "coef_m"], "additionalProperties": false,
+              "properties": {"knots_deg": {"type": "array", "items": {"type": "number"}}, "coef_m": {"type": "array", "items": {"type": "number"}}}}
+          }
+        }
+      },
+      "modern": {"type": "object", "description": "keyed by 3DEP batch: vertical offset of that batch (one batch fixed at 0)",
+        "additionalProperties": {"type": "object", "required": ["dz_m"], "properties": {"dz_m": {"type": "number"}, "fixed": {"type": "boolean"}}}},
+      "stage2": {"type": "object", "additionalProperties": false, "required": ["spacing_m", "lam"],
+        "properties": {"spacing_m": {"type": "number"}, "lam": {"type": "number"}}},
+      "fit": {"type": "object", "required": ["n_obs", "n_overlap_obs", "rms_m", "params_sha256"],
+        "properties": {"n_obs": {"type": "integer"}, "n_overlap_obs": {"type": "integer"}, "rms_m": {"type": "number"}, "params_sha256": {"type": "string"}}},
+      "files": {"type": "object", "description": "sha256 of the side files", "required": ["members.parquet"],
+        "properties": {"members.parquet": {"type": "string"}, "stage2.npz": {"type": "string"}}}
+    }
+  }
+}

@@ -1,0 +1,19 @@
+# M3C2 environment (change/m3c2 only). py4dgeo pins its own numpy, so it lives apart from envs/main.yml.
+# The ilcd package is installed here too so change.m3c2 can read and write contract files.
+# Create:  mamba env create -p $ILCD_ENV_ROOT/ilcd-m3c2 -f envs/m3c2.yml   then   pip install -e . --no-deps
+name: ilcd-m3c2
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - pyarrow>=16
+  - pandas>=2.2
+  - pyproj>=3.6
+  - laspy>=2.5
+  - lazrs-python>=0.6
+  - pyyaml>=6
+  - jsonschema>=4.22
+  - pip
+  - pip:
+      - py4dgeo==1.2.1     # version used for the East Fork results (2026-10)

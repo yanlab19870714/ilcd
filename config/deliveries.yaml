@@ -1,0 +1,12 @@
+# Manual facts about OT 2011-13 deliveries (folders), each with its evidence. Validated by contract delivery_overrides.
+# Only facts that the automatic checks cannot establish belong here: a GPS week from acquisition metadata, a datum
+# override when the automatic test is ambiguous, and what point_source_id means (diagnostic only).
+# Datum decisions found during exploration are NOT entered here: data_src must reproduce them (acceptance tests).
+
+W_Carroll:
+  psid_meaning: line
+  evidence: "2026-11-04 nadir test: flight lines from GPS time match point_source_id with purity 1.00 both ways (31 lines)"
+
+W_Monroe:
+  psid_meaning: subtile
+  evidence: "2026-10-21 tile 31101425: point_source_id 344/345/364/365 are spatial sub-tiles; passes split by GPS time"

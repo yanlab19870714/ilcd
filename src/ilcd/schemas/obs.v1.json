@@ -1,0 +1,20 @@
+{
+  "contract": "obs", "version": 1, "kind": "table", "owner": "refs", "status": "draft",
+  "description": "One measurement of one non-excluded patch by one legacy pass: 2011 minus 3DEP. The raw material of the correction.",
+  "path": "cells/{cell_id}/refs/obs.parquet",
+  "key": ["patch_id", "pass_id"],
+  "columns": [
+    {"name": "patch_id", "type": "string"},
+    {"name": "pass_id", "type": "string"},
+    {"name": "modern_batch", "type": "string"},
+    {"name": "dz_m", "type": "float32", "unit": "m", "description": "Median of 2011 point heights minus the 3DEP surface (2011 datum-converted, uncorrected)"},
+    {"name": "sigma_m", "type": "float32", "unit": "m", "description": "Standard error of dz_m"},
+    {"name": "n_legacy", "type": "int32"},
+    {"name": "scan_deg", "type": "float32", "unit": "deg", "description": "Mean scan angle of the 2011 points used"},
+    {"name": "t_s", "type": "float64", "unit": "s", "description": "Mean GPS time of the 2011 points used (pass time domain)"},
+    {"name": "x_m", "type": "float64", "unit": "m", "description": "Mean position of the 2011 points used"},
+    {"name": "y_m", "type": "float64", "unit": "m"},
+    {"name": "gx", "type": "float32", "unit": "m/m", "description": "3DEP surface gradient dz/dx at the patch (horizontal-shift term)"},
+    {"name": "gy", "type": "float32", "unit": "m/m"}
+  ]
+}

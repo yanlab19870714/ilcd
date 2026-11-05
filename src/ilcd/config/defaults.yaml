@@ -1,0 +1,124 @@
+# Every tunable parameter of ilcd, grouped by module. Units are in the key name or the comment.
+# A region overrides values under `params:` with the same nesting (config/regions/*.yaml); unknown keys are errors.
+# PROVISIONAL marks values not yet tested on data.
+# "old:" names the exploratory script (archive indiana-lidar_2026-11-05) a value was carried over from.
+
+data_src:
+  region_buffer_m: 1000.0         # work area = region footprint buffered by this
+  legacy_bucket: https://opentopography.s3.sdsc.edu/pc-bulk/IN_2011_2013
+  ept_boundaries: https://raw.githubusercontent.com/hobu/usgs-lidar/master/boundaries/resources.geojson
+  counties: https://www2.census.gov/geo/tiger/GENZ2023/shp/cb_2023_us_county_500k.zip
+  state_fips: "18"                # Indiana
+  max_parallel_downloads: 8       # OT and EPT; rockyweb is never used (it blocks Big Red, HTTP 429)
+  datum:
+    n_samples: 3                  # sample cells per delivery
+    max_residual_m: 0.30          # a hypothesis passes a sample when its residual shift is below this
+    search_radius_m: 1.5          # grid search of the residual shift
+    search_step_m: 0.05
+    itrf_epoch: 2011.5            # old: pair_diagnostics.transform_2011
+  geoid:
+    legacy: GEOID09               # 2011-13 heights; converted to GEOID12B (about 1.6 cm here)
+    project: GEOID12B
+
+flightlines:
+  gap_s: 5.0                      # GPS-time gap that starts a new pass; old: swath_analysis.GAP
+  min_pass_points: 200            # passes with fewer points are kept but not linked or measured
+  link:
+    max_turn_deg: 20.0            # old: link_lines.MAX_TURN
+    max_span_s: 900.0             # old: link_lines.MAX_SPAN
+    pos_tol_m: 300.0              # |along-track distance - speed x time|; old: link_lines.POS_TOL
+    cross_tol_m: 1500.0           # loose on purpose: nadir test 2026-11-04 (Carroll 31/31 lines, purity 1.00)
+  nadir:
+    max_scan_deg: 2.0             # diagnostic ground track from near-nadir returns
+    min_points: 200
+    min_span_share: 0.5
+  block:
+    max_gap_s: 3600.0             # PROVISIONAL: lines further apart in time start a new block
+  class12_ground_tol_m: 0.3       # class-12 overlap points this close to the ground surface count as ground; old: swath_analysis.GROUND_TOL
+
+refs:
+  grid_res_m: 1.0                 # analysis grid of patch extraction
+  ground:                         # hard ground; old: patches_v2 G_*
+    min_points: 12
+    max_rms_m: 0.03
+    max_object_share: 0.15
+    min_single_share: 0.85
+    max_slope_deg: 15.0
+    min_area_m2: 20.0
+    ndvi_quantile: 0.90           # NDVI cut = this quantile of 3DEP ground on OSM motor roads
+  roof:                           # old: patches_v2 R_*, measure_patches
+    min_hag_m: 2.5
+    min_points: 10
+    max_rms_m: 0.05
+    max_slope_deg: 60.0
+    max_normal_angle_deg: 5.0
+    max_step_m: 0.10
+    min_area_m2: 20.0
+    measure_min_area_m2: 100.0    # roofs used for measuring; small roofs mix ridge sides
+    edge_erosion_m: 2.0
+    ndvi_margin: 0.10
+  natural:                        # flat natural ground (also under canopy). PROVISIONAL: new in ilcd, tune on the Monroe forest cells
+    max_slope_deg: 5.0
+    max_rough_m: 0.05
+    min_area_m2: 100.0
+  slope:                          # sloped natural ground for the horizontal-shift term; old: hshift_fit
+    min_slope_deg: 10.0
+    max_dz_m: 3.0
+  screen:
+    water_buffer_m: 100.0         # banks move; old: fit_field.WATER_BUF
+    cell_gross_m: 0.30            # cell median beyond this from its neighbours = real change; old: fit_field.GROSS_TILE
+    use_cdl: true                 # exclude cropland patches (not implemented in the old code)
+  obs:
+    min_legacy_points: 20
+
+align:
+  stage1:
+    scan_knots: 8                 # cubic B-spline knots in scan angle, per block; old: fit_scan S_8
+    trend: block                  # one along-track trend per block (per-line trends overfit)
+    hshift_min_points: 1000       # fewer sloped points -> the line uses its block's mean shift (v3d)
+  stage2:
+    spacing_m: 1000.0             # B-spline knot spacing of the per-line field; old: final_fit h_km=1
+    lam: 1000.0                   # smoothness weight; old: final_fit default
+    ridge: 0.001
+    fit_kinds: [road]             # stage 2 is fitted on road patches only
+  modern_reference_batch: auto    # 3DEP batch fixed at offset 0 (auto = the one with most observations)
+
+eval:
+  cv:
+    folds: 5                      # old: fit_field.FOLDS
+    repeats: 10
+    fold_unit: cell
+  injection:
+    radii_m: [50.0, 100.0, 200.0, 500.0, 1000.0]   # old: fit_field.INJECT_R
+    amount_m: 0.10
+    n_centres: 30
+    seed: 0
+  status:
+    corrected_max_nmad_m: 0.05    # PROVISIONAL
+    min_holdout: 10
+
+change:
+  dod:
+    res_m: 2.0
+    lod_z: 1.96
+    min_points: 3
+  m3c2:                           # old: m3c2_sites
+    core_res_m: 1.0
+    cylinder_radius_m: 1.5
+    normal_radii_m: [1.0, 2.0, 4.0]
+    max_distance_m: 10.0
+    registration_error_m: 0.05
+  objects:                        # old: m3c2_objects
+    min_magnitude_m: 0.30
+    dbscan_eps_m: 2.5
+    dbscan_min_samples: 10
+    min_area_m2: 25.0
+  structures:
+    min_height_m: 2.5             # old: big_change
+    min_area_m2: 50.0
+
+viz_label:
+  scene_points: 45000             # old: m3c2_view_data N_PTS
+  imagery:
+    legacy_year: 2011             # IndianaMap leaf-off orthophotos
+    modern_source: naip

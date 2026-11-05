@@ -1,0 +1,18 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "site": "eastfork_doug",
+    "kind": "box",
+    "source": "Doug Edmonds, 2026-10-27: East Fork White River reach for bank change (49 legacy tiles: 33 Bartholomew, 16 Jackson)",
+    "regions": ["bartholomew", "jackson"]
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [[[-85.94025584650326, 39.017791762865954], [-85.81866290905121, 39.017791762865954], [-85.81866290905121, 39.09741714139142], [-85.94025584650326, 39.09741714139142], [-85.94025584650326, 39.017791762865954]]]
+   }
+  }
+ ]
+}

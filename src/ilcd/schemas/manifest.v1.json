@@ -1,0 +1,24 @@
+{
+  "contract": "manifest", "version": 1, "kind": "json", "owner": "common", "status": "draft",
+  "description": "Provenance of one step run, written next to its outputs as <step>.manifest.json.",
+  "path": "{output dir}/{step}.manifest.json",
+  "schema": {
+    "type": "object", "required": ["step", "status", "code", "params_sha256", "params", "inputs", "outputs", "started_utc", "finished_utc", "host"], "additionalProperties": false,
+    "properties": {
+      "step": {"type": "string", "description": "<module>.<command>"},
+      "status": {"enum": ["ok", "empty"]},
+      "unit": {"type": "string", "description": "file_id, cell_id, scope or site the step ran for"},
+      "code": {"type": "object", "required": ["version", "commit", "dirty"], "additionalProperties": false,
+        "properties": {"version": {"type": "string"}, "commit": {"type": ["string", "null"]}, "dirty": {"type": ["boolean", "null"]}}},
+      "params_sha256": {"type": "string"},
+      "params": {"type": "object"},
+      "inputs": {"type": "array", "items": {"$ref": "#/$defs/file"}},
+      "outputs": {"type": "array", "items": {"$ref": "#/$defs/file"}},
+      "message": {"type": "string"},
+      "started_utc": {"type": "string"}, "finished_utc": {"type": "string"},
+      "host": {"type": "string"}, "slurm_job": {"type": ["string", "null"]}
+    },
+    "$defs": {"file": {"type": "object", "required": ["path"], "additionalProperties": false,
+      "properties": {"path": {"type": "string", "description": "relative to ILCD_DATA_ROOT when inside it"}, "sha256": {"type": ["string", "null"]}, "contract": {"type": ["string", "null"]}, "bytes": {"type": ["integer", "null"]}}}}
+  }
+}

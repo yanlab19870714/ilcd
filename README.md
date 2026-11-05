@@ -4,7 +4,7 @@ ILCD makes Indiana's first statewide airborne lidar (2011–13) comparable with 
 
 The 2011–13 data carry flight-line errors of 5–15 cm, about the same size as much of the real change. ILCD estimates and removes those errors before differencing.
 
-> **Status: early development.** The repository is being set up. The working research scripts are being moved in module by module, and nothing here runs yet.
+> **Status: early development.** The shared core (`ilcd.common`), all file contracts and the configuration are in place. The processing modules are being moved in one at a time, following the steps in [docs/modules.md](docs/modules.md). The pipeline does not run end to end yet.
 
 ## What it does
 
@@ -44,9 +44,26 @@ Each step is a separate module under `src/ilcd/`:
 | `baselines` | Runs the comparison methods |
 | `viz_label` | Builds viewing and labelling pages |
 
-Modules communicate only through versioned files (Parquet, GeoTIFF/COG, GeoJSON, LAZ). Their schemas will be added in `schemas/`. A Snakemake workflow will chain the modules and submit jobs to Slurm.
+Modules communicate only through versioned, validated files: Parquet, GeoParquet, GeoTIFF/COG, GeoJSON and JSON. Their contracts are in `src/ilcd/schemas/`. A Snakemake workflow chains the modules and submits the jobs to Slurm.
 
-Point clouds and rasters are never stored in this repository. They are downloaded into a local data directory set by `ILCD_DATA_ROOT`.
+Work is organised by the natural unit of each step:
+
+- **per legacy file**: flight passes;
+- **per 1 km cell**: reference surfaces, observations and rasters;
+- **per scope** (a region or the whole state): flight lines, the correction model and its evaluation;
+- **per site**: change objects and labels.
+
+This way, overlapping regions share results instead of recomputing them.
+
+Point clouds and rasters are never stored in this repository. They live in a data store set by `ILCD_DATA_ROOT`.
+
+Documentation:
+
+- [docs/design.md](docs/design.md): the decisions everything relies on.
+- [docs/modules.md](docs/modules.md): the code map and the refactor steps.
+- [docs/contracts.md](docs/contracts.md): every file format.
+- [docs/runbook.md](docs/runbook.md): setup and running.
+- [docs/history.md](docs/history.md): what the exploratory phase found.
 
 ## Data sources
 

@@ -1,0 +1,44 @@
+{
+  "contract": "datum", "version": 1, "kind": "json", "owner": "data_src", "status": "draft",
+  "description": "Horizontal datum test of one delivery: residual shift to 3DEP under both readings of the WGS84 label, at several sample areas. The decision is the hypothesis that passes every sample while the other fails one; otherwise ambiguous.",
+  "path": "statewide/deliveries/{delivery_id}/datum.json",
+  "schema": {
+    "type": "object",
+    "required": ["delivery_id", "decision", "geoid", "max_residual_m", "samples"],
+    "additionalProperties": false,
+    "properties": {
+      "delivery_id": {"type": "string"},
+      "decision": {"enum": ["itrf", "nad83", "ambiguous"], "description": "ambiguous stops the pipeline for this delivery"},
+      "geoid": {"type": "string", "description": "Vertical conversion applied, e.g. GEOID09->GEOID12B"},
+      "max_residual_m": {"type": "number"},
+      "samples": {
+        "type": "array", "minItems": 1,
+        "items": {
+          "type": "object", "required": ["cell_id", "files", "surface", "itrf", "nad83"], "additionalProperties": false,
+          "properties": {
+            "cell_id": {"type": "string"},
+            "files": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "file_ids used"},
+            "surface": {"enum": ["roofs", "ground"]},
+            "itrf": {"$ref": "#/$defs/hypothesis"},
+            "nad83": {"$ref": "#/$defs/hypothesis"}
+          }
+        }
+      }
+    },
+    "$defs": {
+      "hypothesis": {
+        "type": "object", "additionalProperties": false,
+        "required": ["dx_m", "dy_m", "dz_m", "nmad_before_m", "nmad_after_m", "n_points", "passes"],
+        "properties": {
+          "dx_m": {"type": "number", "description": "Residual east shift 2011 -> 3DEP after this hypothesis's transform"},
+          "dy_m": {"type": "number"},
+          "dz_m": {"type": "number"},
+          "nmad_before_m": {"type": "number"},
+          "nmad_after_m": {"type": "number"},
+          "n_points": {"type": "integer", "minimum": 0},
+          "passes": {"type": "boolean", "description": "hypot(dx_m, dy_m) < max_residual_m"}
+        }
+      }
+    }
+  }
+}

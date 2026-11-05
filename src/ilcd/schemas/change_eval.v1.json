@@ -1,0 +1,14 @@
+{
+  "contract": "change_eval", "version": 1, "kind": "json", "owner": "eval", "status": "draft",
+  "description": "Scores of change-detection methods against expert labels of one site. Agreement with M3C2 is reported separately and never as accuracy.",
+  "path": "sites/{site}/eval/change_eval.json",
+  "schema": {
+    "type": "object", "required": ["site", "labels_sha256", "methods"], "additionalProperties": false,
+    "properties": {
+      "site": {"type": "string"}, "labels_sha256": {"type": "string"},
+      "methods": {"type": "array", "items": {"type": "object", "required": ["method", "n_labels", "precision", "recall", "f1"], "additionalProperties": true,
+        "properties": {"method": {"type": "string"}, "n_labels": {"type": "integer"}, "precision": {"type": "number"}, "recall": {"type": "number"}, "f1": {"type": "number"},
+          "agreement_with_m3c2": {"type": "number"}}}}
+    }
+  }
+}

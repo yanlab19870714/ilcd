@@ -1,0 +1,24 @@
+{
+  "contract": "patches", "version": 1, "kind": "vector", "owner": "refs", "status": "draft",
+  "description": "Candidate stable reference surfaces of one cell, built on 3DEP, with screening results. Excluded patches are kept with a reason.",
+  "path": "cells/{cell_id}/refs/patches.parquet",
+  "key": ["patch_id"],
+  "geometry": {"type": "Polygon", "crs": "EPSG:6345"},
+  "columns": [
+    {"name": "patch_id", "type": "string", "description": "<cell_id>.<kind code><n>"},
+    {"name": "kind", "type": "string", "enum": ["road", "hard_other", "roof_flat", "roof_sloped", "natural_flat", "natural_slope"]},
+    {"name": "source", "type": "string", "enum": ["osm", "ndvi", "geometry", "segmentation"], "description": "What identified the surface"},
+    {"name": "modern_batch", "type": "string"},
+    {"name": "area_m2", "type": "float32", "unit": "m2"},
+    {"name": "slope_deg", "type": "float32", "unit": "deg"},
+    {"name": "aspect_deg", "type": "float32", "unit": "deg"},
+    {"name": "z_m", "type": "float32", "unit": "m", "description": "Mean 3DEP height"},
+    {"name": "rough_m", "type": "float32", "unit": "m", "description": "NMAD of 3DEP points about the local surface"},
+    {"name": "n_modern", "type": "int32"},
+    {"name": "osm_id", "type": "int64", "nullable": true},
+    {"name": "cdl_class", "type": "int16", "nullable": true, "description": "USDA CDL class at the patch (majority), if available"},
+    {"name": "excluded", "type": "bool"},
+    {"name": "exclude_reason", "type": "string", "nullable": true, "enum": ["cropland", "water", "too_steep", "too_rough", "too_small", "change_suspect", "building_change"]},
+    {"name": "geometry", "type": "geometry"}
+  ]
+}

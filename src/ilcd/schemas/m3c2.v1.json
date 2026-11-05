@@ -1,0 +1,19 @@
+{
+  "contract": "m3c2", "version": 1, "kind": "table", "owner": "change", "status": "draft",
+  "description": "M3C2 distances at core points of one site (3DEP ground thinned to change.m3c2.core_res_m).",
+  "path": "sites/{site}/change/m3c2.parquet",
+  "key": ["core_id"],
+  "columns": [
+    {"name": "core_id", "type": "int64"},
+    {"name": "x_m", "type": "float64", "unit": "m"},
+    {"name": "y_m", "type": "float64", "unit": "m"},
+    {"name": "z_m", "type": "float64", "unit": "m"},
+    {"name": "d_m", "type": "float32", "unit": "m", "nullable": true, "description": "Signed distance along the normal, modern minus legacy; null where a cylinder lacks points"},
+    {"name": "lod_m", "type": "float32", "unit": "m", "nullable": true},
+    {"name": "sig", "type": "bool", "description": "|d_m| > lod_m"},
+    {"name": "normal_scale_m", "type": "float32", "unit": "m"},
+    {"name": "n_legacy", "type": "int32"},
+    {"name": "n_modern", "type": "int32"},
+    {"name": "object_id", "type": "string", "nullable": true, "description": "Change object the point belongs to"}
+  ]
+}

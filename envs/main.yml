@@ -1,0 +1,34 @@
+# Main ilcd environment: every module except change/m3c2 (envs/m3c2.yml) and the deep-learning baselines (envs/dl.yml).
+# Create:  mamba env create -p $ILCD_ENV_ROOT/ilcd -f envs/main.yml   then   pip install -e . --no-deps
+name: ilcd
+channels:
+  - conda-forge
+  - bioconda               # snakemake and its Slurm executor plugin
+  - nodefaults
+dependencies:
+  - python=3.12
+  - numpy>=1.26,<2.3
+  - scipy>=1.13
+  - pandas>=2.2
+  - pyarrow>=16
+  - numba>=0.60
+  - scikit-learn>=1.5
+  - pyproj>=3.6
+  - proj-data              # PROJ grids (geoid models, NADCON) used by the datum transforms; no network fetches
+  - shapely>=2.0
+  - geopandas>=1.0
+  - pyogrio>=0.9
+  - rasterio>=1.3
+  - pdal>=2.7
+  - python-pdal>=3.4
+  - laspy>=2.5
+  - lazrs-python>=0.6
+  - pyyaml>=6
+  - jsonschema>=4.22
+  - requests>=2.32
+  - matplotlib>=3.9
+  - snakemake>=8.20
+  - snakemake-executor-plugin-slurm>=0.10
+  - pytest>=8
+  - ruff>=0.6
+  - pip

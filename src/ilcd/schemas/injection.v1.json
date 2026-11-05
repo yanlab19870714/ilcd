@@ -1,0 +1,13 @@
+{
+  "contract": "injection", "version": 1, "kind": "json", "owner": "eval", "status": "draft",
+  "description": "Synthetic change injected into obs (alternating +/- amount at random centres) and the share absorbed by each model stage.",
+  "path": "{scope}/eval/injection.json",
+  "schema": {
+    "type": "object", "required": ["scope", "amount_m", "n_centres", "seed", "results"], "additionalProperties": false,
+    "properties": {
+      "scope": {"type": "string"}, "amount_m": {"type": "number"}, "n_centres": {"type": "integer"}, "seed": {"type": "integer"},
+      "results": {"type": "array", "items": {"type": "object", "required": ["stage", "radius_m", "absorbed_median", "absorbed_p90"], "additionalProperties": false,
+        "properties": {"stage": {"type": "string"}, "radius_m": {"type": "number"}, "absorbed_median": {"type": "number"}, "absorbed_p90": {"type": "number"}}}}
+    }
+  }
+}

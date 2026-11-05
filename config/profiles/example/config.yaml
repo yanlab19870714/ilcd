@@ -1,0 +1,15 @@
+# Snakemake profile template. Copy to config/profiles/<machine>/ (git-ignored) and fill in the account.
+#   cp -r config/profiles/example config/profiles/bigred
+#   snakemake --profile config/profiles/bigred --config region=carroll
+executor: slurm
+jobs: 100
+latency-wait: 60
+retries: 1
+rerun-incomplete: true
+printshellcmds: true
+default-resources:
+  slurm_account: CHANGE_ME        # your Slurm account
+  slurm_partition: general
+  runtime: 60                     # minutes
+  mem_mb: 8000
+  cpus_per_task: 1

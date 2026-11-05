@@ -218,3 +218,34 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- ilcd -------------------------------------------------------------------------------------------------------
+# Data never enters the repository (it lives under $ILCD_DATA_ROOT); small test inputs in tests/fixtures/ are allowed.
+*.laz
+*.las
+*.lax
+*.copc.laz
+*.tif
+*.tiff
+*.parquet
+*.npz
+*.npy
+*.ply
+*.gpkg
+*.zip
+!tests/fixtures/**
+# Workflow and cluster output
+.snakemake/
+slurm-*.out
+logs/
+*.manifest.json
+# Machine-specific Snakemake profiles (copy config/profiles/example/)
+config/profiles/*
+!config/profiles/example/
+# Credentials and local settings
+.env
+.env.*
+*.pem
+*.key
+id_*
+.netrc

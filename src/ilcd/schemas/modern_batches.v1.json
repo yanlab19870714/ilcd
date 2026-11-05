@@ -1,0 +1,13 @@
+{
+  "contract": "modern_batches", "version": 1, "kind": "vector", "owner": "data_src", "status": "draft",
+  "description": "3DEP EPT resources (usgs-lidar-public) intersecting Indiana.",
+  "path": "statewide/catalog/modern_batches.parquet",
+  "key": ["batch"],
+  "geometry": {"type": "MultiPolygon", "crs": "EPSG:6345"},
+  "columns": [
+    {"name": "batch", "type": "string", "description": "EPT resource name, e.g. IN_Statewide_Opt2_B2_2017"},
+    {"name": "ept_url", "type": "string"},
+    {"name": "n_points", "type": "int64"},
+    {"name": "geometry", "type": "geometry", "description": "Resource boundary"}
+  ]
+}

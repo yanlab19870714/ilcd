@@ -1,0 +1,22 @@
+# Deep-learning change-detection baselines (baselines/pgn3dcd). GPU partition only.
+# Pinned to the stack that ran PGN3DCD in 2026-10 (torch 1.8.1 + CUDA 11.1, torch-geometric 1.7.2).
+# Not yet rebuilt from this file; the working copy is $ILCD_ENV_ROOT/dc3dcd. See docs/runbook.md.
+name: ilcd-dl
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.8
+  - cudatoolkit=11.1
+  - pip
+  - pip:
+      - --find-links https://download.pytorch.org/whl/torch_stable.html
+      - torch==1.8.1+cu111
+      - --find-links https://data.pyg.org/whl/torch-1.8.1+cu111.html
+      - torch-scatter
+      - torch-cluster
+      - torch-geometric==1.7.2
+      - torch-points-kernels==0.7.0
+      - numpy==1.23.5
+      - laspy>=2.4
+      - pyyaml

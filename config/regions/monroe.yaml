@@ -1,0 +1,9 @@
+name: monroe
+description: Monroe County. Second acceptance region; different datum, time encoding and point_source_id meaning.
+footprint:
+  county: Monroe
+notes:
+  - "2011 delivery W_Monroe needs ITRF2014 -> NAD83(2011); the null transform leaves E+0.70/N-0.83 m (2026-10-21)."
+  - "GPS week seconds with no week; point_source_id is a spatial sub-tile, not a line."
+  - "East edge: four files clipped at the Brown County line overlap Brown's delivery by about 500 m."
+  - "Seven forest/lake tiles have no hard ground or roofs; they crashed the old code (2026-10-23)."

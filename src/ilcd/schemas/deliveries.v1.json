@@ -1,0 +1,18 @@
+{
+  "contract": "deliveries", "version": 1, "kind": "table", "owner": "data_src", "status": "draft",
+  "description": "One row per OT folder <zone>/<name> (a county, or a multi-county batch such as IN_E_2012). Conventions assumed constant within a delivery (checked) that differ between deliveries.",
+  "path": "statewide/catalog/deliveries.parquet",
+  "key": ["delivery_id"],
+  "columns": [
+    {"name": "delivery_id", "type": "string", "description": "<E|W>_<folder name>"},
+    {"name": "zone", "type": "string", "enum": ["E", "W"]},
+    {"name": "folder", "type": "string", "description": "OT folder name, e.g. Monroe, St_Joseph, IN_E_2012"},
+    {"name": "n_files", "type": "int32", "description": "Files listed in the folder, including copies shared with other folders"},
+    {"name": "gps_time_type", "type": "string", "nullable": true, "enum": ["adjusted_standard", "week_seconds", "mixed"], "description": "Null until a file has been fetched"},
+    {"name": "gps_week", "type": "int32", "nullable": true, "description": "GPS week for week-seconds deliveries, from config/deliveries.yaml"},
+    {"name": "time_domain", "type": "string", "nullable": true, "description": "abs, or wk:<delivery_id> when the week is unknown"},
+    {"name": "datum", "type": "string", "nullable": true, "enum": ["itrf", "nad83"], "description": "Decision from datum.json or config override; null = not decided (points cannot be read)"},
+    {"name": "datum_source", "type": "string", "nullable": true, "enum": ["test", "override"]},
+    {"name": "psid_meaning", "type": "string", "nullable": true, "enum": ["line", "subtile", "unknown"], "description": "Diagnostic only; never used for linking"}
+  ]
+}

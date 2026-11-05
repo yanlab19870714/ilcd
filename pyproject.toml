@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ilcd"
+version = "0.1.0.dev0"
+description = "Indiana Lidar Correction and Change Detection: align 2011-13 Indiana lidar to 3DEP and map surface change"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Da Yan" }]
+requires-python = ">=3.12"
+# Dependencies come from envs/*.yml (conda-forge: PDAL, PROJ and GDAL are not reliably pip-installable).
+dependencies = []
+
+[project.scripts]
+ilcd = "ilcd.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ilcd = ["schemas/*.json", "config/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "data: needs ILCD_TEST_DATA_ROOT, a data store with the fixture downloads (skipped otherwise)",
+    "network: downloads from the internet (skipped unless ILCD_TEST_NETWORK=1)",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "NPY"]

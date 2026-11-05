@@ -1,0 +1,12 @@
+{
+  "contract": "line_members", "version": 1, "kind": "table", "owner": "flightlines", "status": "draft",
+  "description": "Which line each pass of the scope belongs to. Every pass in {scope}/flightlines/passes.parquet appears exactly once.",
+  "path": "{scope}/flightlines/line_members.parquet",
+  "key": ["pass_id"],
+  "columns": [
+    {"name": "pass_id", "type": "string"},
+    {"name": "line_id", "type": "string"},
+    {"name": "along_m", "type": "float32", "unit": "m", "description": "Pass centre along the line from (x0_m, y0_m)"},
+    {"name": "cross_m", "type": "float32", "unit": "m", "description": "Pass centre across the line (diagnostic)"}
+  ]
+}

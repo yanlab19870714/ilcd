@@ -1,0 +1,15 @@
+{
+  "contract": "status", "version": 1, "kind": "table", "owner": "eval", "status": "draft",
+  "description": "Whether each line is corrected in each cell (proposal Step 4), from held-out patches.",
+  "path": "{scope}/eval/status.parquet",
+  "key": ["cell_id", "line_id"],
+  "columns": [
+    {"name": "cell_id", "type": "string"},
+    {"name": "line_id", "type": "string"},
+    {"name": "n_holdout", "type": "int32"},
+    {"name": "bias_m", "type": "float32", "unit": "m", "description": "Median held-out residual"},
+    {"name": "nmad_m", "type": "float32", "unit": "m"},
+    {"name": "lod95_m", "type": "float32", "unit": "m", "description": "95% level of detection of a 2 m DoD pixel on open ground"},
+    {"name": "status", "type": "string", "enum": ["corrected", "stage1_only", "not_corrected", "no_data"]}
+  ]
+}

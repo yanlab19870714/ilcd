@@ -1,0 +1,17 @@
+{
+  "contract": "labels", "version": 1, "kind": "geojson", "owner": "viz_label", "status": "draft",
+  "description": "Expert labels of one site, edited in the web pages or QGIS. One feature per labelled object or drawn polygon. GeoJSON in EPSG:4326 (RFC 7946), converted to EPSG:6345 on reading.",
+  "path": "sites/{site}/labels/labels.geojson",
+  "key": ["label_id"],
+  "geometry": {"type": "Polygon", "crs": "EPSG:4326"},
+  "columns": [
+    {"name": "label_id", "type": "string"},
+    {"name": "object_id", "type": "string", "nullable": true, "description": "Labelled change object; null for a polygon drawn from scratch"},
+    {"name": "class", "type": "string", "enum": ["bank_retreat", "bar_deposition", "channel_change", "floodplain_deposition", "structure_new", "structure_removed", "earthwork", "vegetation_artifact", "alignment_artifact", "no_change", "unsure"]},
+    {"name": "annotator", "type": "string"},
+    {"name": "tool", "type": "string", "enum": ["web3d", "bev", "qgis"]},
+    {"name": "created_utc", "type": "string"},
+    {"name": "blind", "type": "bool", "description": "Annotator did not see the method's output (independent ground truth)"},
+    {"name": "note", "type": "string", "nullable": true}
+  ]
+}

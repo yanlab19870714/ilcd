@@ -1,0 +1,19 @@
+{
+  "contract": "overlap_obs", "version": 1, "kind": "table", "owner": "refs", "status": "draft",
+  "description": "A patch measured by two legacy passes: pass a minus pass b. Independent of 3DEP and of real change.",
+  "path": "cells/{cell_id}/refs/overlap_obs.parquet",
+  "key": ["patch_id", "pass_a", "pass_b"],
+  "columns": [
+    {"name": "patch_id", "type": "string"},
+    {"name": "pass_a", "type": "string", "description": "pass_a < pass_b lexically"},
+    {"name": "pass_b", "type": "string"},
+    {"name": "dz_ab_m", "type": "float32", "unit": "m"},
+    {"name": "sigma_m", "type": "float32", "unit": "m"},
+    {"name": "n_a", "type": "int32"},
+    {"name": "n_b", "type": "int32"},
+    {"name": "scan_a_deg", "type": "float32", "unit": "deg"},
+    {"name": "scan_b_deg", "type": "float32", "unit": "deg"},
+    {"name": "x_m", "type": "float64", "unit": "m"},
+    {"name": "y_m", "type": "float64", "unit": "m"}
+  ]
+}

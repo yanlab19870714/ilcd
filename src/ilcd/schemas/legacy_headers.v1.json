@@ -1,0 +1,21 @@
+{
+  "contract": "legacy_headers", "version": 1, "kind": "table", "owner": "data_src", "status": "draft",
+  "description": "Facts read from each legacy file when it is first fetched.",
+  "path": "statewide/catalog/legacy_headers.parquet",
+  "key": ["file_id"],
+  "columns": [
+    {"name": "file_id", "type": "string"},
+    {"name": "sha256", "type": "string"},
+    {"name": "n_points", "type": "int64"},
+    {"name": "point_format", "type": "int16"},
+    {"name": "gps_time_type", "type": "string", "enum": ["adjusted_standard", "week_seconds"], "description": "From the LAS global-encoding bit, checked against the value range"},
+    {"name": "gps_min_s", "type": "float64", "unit": "s", "description": "As stored in the file"},
+    {"name": "gps_max_s", "type": "float64", "unit": "s"},
+    {"name": "scale_xy", "type": "float64", "description": "Stored XY scale (degrees in the OT files)"},
+    {"name": "scale_z", "type": "float64", "unit": "m"},
+    {"name": "n_psid", "type": "int32", "description": "Number of distinct point_source_id values"},
+    {"name": "class12_share", "type": "float32", "description": "Share of points in class 12 (overlap)"},
+    {"name": "copies_identical", "type": "bool", "nullable": true, "description": "Other folders' copies hold the same points; null if the file has no copies or they were not checked"},
+    {"name": "fetched_utc", "type": "string", "description": "ISO 8601"}
+  ]
+}

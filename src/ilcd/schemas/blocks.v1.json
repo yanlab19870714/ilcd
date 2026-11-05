@@ -1,0 +1,16 @@
+{
+  "contract": "blocks", "version": 1, "kind": "vector", "owner": "flightlines", "status": "draft",
+  "description": "Acquisition blocks of one scope: lines flown together, sharing scan-angle and along-track trend terms.",
+  "path": "{scope}/flightlines/blocks.parquet",
+  "key": ["block_id"],
+  "geometry": {"type": "Polygon", "crs": "EPSG:6345"},
+  "columns": [
+    {"name": "block_id", "type": "string"},
+    {"name": "time_domain", "type": "string"},
+    {"name": "t_start_s", "type": "float64", "unit": "s"},
+    {"name": "t_end_s", "type": "float64", "unit": "s"},
+    {"name": "n_lines", "type": "int32"},
+    {"name": "deliveries", "type": "list<string>"},
+    {"name": "geometry", "type": "geometry", "description": "Convex hull of its passes"}
+  ]
+}

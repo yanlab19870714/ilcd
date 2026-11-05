@@ -1,0 +1,19 @@
+{
+  "contract": "lines", "version": 1, "kind": "table", "owner": "flightlines", "status": "draft",
+  "description": "Flight lines of one scope: passes linked by heading, time, along-track distance = speed x time, and cross-track offset.",
+  "path": "{scope}/flightlines/lines.parquet",
+  "key": ["line_id"],
+  "columns": [
+    {"name": "line_id", "type": "string", "description": "<time_domain>@<start of first pass, 0.1 s>; unique within the scope"},
+    {"name": "block_id", "type": "string"},
+    {"name": "time_domain", "type": "string"},
+    {"name": "t_start_s", "type": "float64", "unit": "s"},
+    {"name": "t_end_s", "type": "float64", "unit": "s"},
+    {"name": "n_passes", "type": "int32"},
+    {"name": "heading_deg", "type": "float32", "unit": "deg", "description": "Point-weighted mean heading of its passes"},
+    {"name": "x0_m", "type": "float64", "unit": "m", "description": "Origin of the along-track coordinate: centre of the first pass"},
+    {"name": "y0_m", "type": "float64", "unit": "m"},
+    {"name": "length_m", "type": "float32", "unit": "m", "description": "Along-track extent of its passes"},
+    {"name": "n_points", "type": "int64"}
+  ]
+}

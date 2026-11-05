@@ -1,0 +1,60 @@
+# Modules
+
+This page is a map of the code. The decisions behind it are in [design.md](design.md), and every file a module
+writes is described in [contracts.md](contracts.md).
+
+```
+data_src ──► flightlines ──► refs ──► align ──► eval
+    │                          │        │
+    └──────────── points ──────┴──► change ──► viz_label ──► labels ──► eval
+                                        ▲
+                               baselines (same contracts)
+```
+
+| Module | One-line job | Unit of work | Writes | Status |
+|---|---|---|---|---|
+| `common` | IDs, grid, CRS, time, paths, contracts, I/O, config, manifests | — | manifests | **implemented** |
+| `data_src` | Catalogs, downloads, datum per delivery, the raw point reader | statewide, delivery, cell | `legacy_files`, `legacy_headers`, `deliveries`, `modern_batches`, `datum` | planned (step 2) |
+| `flightlines` | Passes per file; lines and blocks per scope | file, scope | `passes`, `lines`, `line_members`, `blocks` | planned (step 2) |
+| `refs` | Stable reference surfaces and their observations | cell | `patches`, `obs`, `overlap_obs` | planned (step 2) |
+| `align` | Fit and apply the correction model | scope | `model` | planned (step 2) |
+| `eval` | Cross-validation, overlap check, injection, status, change scores | scope, site | `cv`, `status`, `injection`, `overlap_check`, `change_eval` | planned (steps 2, 5) |
+| `change` | DoD, M3C2, change objects | cell, site | `dod`, `m3c2`, `objects` | planned (step 4) |
+| `viz_label` | 3D scenes, BEV page, QGIS export, labels | site | `labels`, pages | planned (step 4) |
+| `baselines` | Other methods, written to the same contracts | scope, site | as align/change | planned (step 5) |
+
+## Rules every module follows
+
+1. **Inputs and outputs are contract files.** Read and write them with `ilcd.common.io`, which validates them.
+   - A module imports no other business module.
+   - Two functions are the exception: `data_src.points` and `align.apply`.
+2. **Every path comes from `ilcd.common.paths`.**
+3. **Every parameter comes from `config`.** Look it up as `params["module.key"]`, never as a constant in the code.
+   A new parameter is added to `src/ilcd/config/defaults.yaml` together with its unit.
+4. **Every step runs inside `manifest.Step`.** No input means a valid empty output plus `step.empty(reason)`, not an
+   exception.
+5. **Every command is reachable as `ilcd <module> <command>`.** Snakemake rules only call these commands.
+6. **Each module has tests.**
+   - Unit tests need no data.
+   - Data tests use the fixture area (marker `data`).
+
+## Changing a contract
+
+1. Edit `src/ilcd/schemas/<name>.v<N>.json`.
+   - While the contract is a `draft`, change it in place.
+   - Once it is `stable`, add `<name>.v<N+1>.json` instead and keep reading v<N>.
+2. Run `ilcd contracts docs > docs/contracts.md`. A test fails if it is stale.
+3. Update the owner module, then its readers. The table in design.md section 8 lists who reads what.
+
+## Refactor steps
+
+1. **Repository skeleton**: environments, `common`, all contracts, configs, docs. *(this commit)*
+2. **data_src → flightlines → refs → align → eval on Carroll.**
+   - Lines must match point_source_id (purity 1.00 both ways).
+   - Stage-1 CV must match a rerun of the old code on the same 31 lines.
+3. **Monroe.** Week-seconds time, ITRF datum, forest cells, the clipped county-line files.
+4. **Bartholomew + Jackson**: the first cross-county scope.
+   - change and viz_label on site `eastfork_doug`.
+   - Compare with the 325 objects from the exploration.
+5. **baselines + blind expert labels**, scored by eval.
+6. **Statewide**: catalog-wide datum and time checks, joint solve, DL surface segmentation.

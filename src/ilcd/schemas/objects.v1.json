@@ -1,0 +1,19 @@
+{
+  "contract": "objects", "version": 1, "kind": "vector", "owner": "change", "status": "draft",
+  "description": "Change objects of one site: connected significant change of one sign, from any method (change or baselines).",
+  "path": "sites/{site}/change/objects.parquet",
+  "key": ["object_id"],
+  "geometry": {"type": "Polygon", "crs": "EPSG:6345"},
+  "columns": [
+    {"name": "object_id", "type": "string", "description": "<site>.<method>.<n>"},
+    {"name": "method", "type": "string", "description": "m3c2_dbscan, dod_cc, or a baseline name"},
+    {"name": "kind", "type": "string", "enum": ["loss", "gain", "structure_new", "structure_removed", "structure_rebuilt"]},
+    {"name": "area_m2", "type": "float32", "unit": "m2"},
+    {"name": "volume_m3", "type": "float32", "unit": "m3", "description": "Signed"},
+    {"name": "mean_dz_m", "type": "float32", "unit": "m"},
+    {"name": "p90_abs_dz_m", "type": "float32", "unit": "m"},
+    {"name": "dist_water_m", "type": "float32", "unit": "m", "nullable": true},
+    {"name": "slope_deg", "type": "float32", "unit": "deg"},
+    {"name": "geometry", "type": "geometry"}
+  ]
+}

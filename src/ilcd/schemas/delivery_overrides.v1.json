@@ -1,0 +1,18 @@
+{
+  "contract": "delivery_overrides", "version": 1, "kind": "json", "owner": "config", "status": "draft",
+  "description": "config/deliveries.yaml: manual facts about OT deliveries, each with its evidence.",
+  "path": "config/deliveries.yaml",
+  "schema": {
+    "type": "object",
+    "propertyNames": {"pattern": "^[EW]_[A-Za-z0-9_]+$"},
+    "additionalProperties": {
+      "type": "object", "required": ["evidence"], "additionalProperties": false,
+      "properties": {
+        "gps_week": {"type": "integer"},
+        "datum": {"enum": ["itrf", "nad83"]},
+        "psid_meaning": {"enum": ["line", "subtile", "unknown"]},
+        "evidence": {"type": "string"}
+      }
+    }
+  }
+}

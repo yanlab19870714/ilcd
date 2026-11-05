@@ -1,0 +1,13 @@
+{
+  "contract": "overlap_check", "version": 1, "kind": "json", "owner": "eval", "status": "draft",
+  "description": "Agreement of overlapping passes after correction (overlap_obs residuals), overall and within/between blocks.",
+  "path": "{scope}/eval/overlap_check.json",
+  "schema": {
+    "type": "object", "required": ["scope", "groups"], "additionalProperties": false,
+    "properties": {
+      "scope": {"type": "string"},
+      "groups": {"type": "array", "items": {"type": "object", "required": ["name", "n", "rms_before_m", "rms_after_m"], "additionalProperties": false,
+        "properties": {"name": {"enum": ["all", "same_block", "between_blocks", "between_deliveries"]}, "n": {"type": "integer"}, "rms_before_m": {"type": "number"}, "rms_after_m": {"type": "number"}}}}
+    }
+  }
+}

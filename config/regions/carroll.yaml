@@ -1,0 +1,8 @@
+name: carroll
+description: Carroll County. First acceptance region of the refactor (docs/design.md section 11).
+footprint:
+  county: Carroll
+notes:
+  - "2011 delivery W_Carroll is NAD83 already (ITRF shift left E+0.6/N-0.8 m on roofs, 2026-10-22)."
+  - "Adjusted-standard GPS time (late March 2011); point_source_id is the flight line (31 lines)."
+  - "East-west flight lines; scan-angle error with one shared 8-knot spline."

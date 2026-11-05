@@ -1,0 +1,32 @@
+{
+  "contract": "passes", "version": 1, "kind": "table", "owner": "flightlines", "status": "draft",
+  "description": "Passes of legacy files: points of one file in one continuous stretch of GPS time (split at gaps > flightlines.gap_s). Written per file and concatenated per scope.",
+  "path": ["files/{file_id}/passes.parquet", "{scope}/flightlines/passes.parquet"],
+  "key": ["pass_id"],
+  "columns": [
+    {"name": "pass_id", "type": "string", "description": "<file_id>#<k>"},
+    {"name": "file_id", "type": "string"},
+    {"name": "delivery_id", "type": "string"},
+    {"name": "time_domain", "type": "string", "description": "abs or wk:<delivery_id>"},
+    {"name": "t_start_s", "type": "float64", "unit": "s", "description": "GPS time in the time domain (adjusted standard for abs)"},
+    {"name": "t_end_s", "type": "float64", "unit": "s"},
+    {"name": "n_points", "type": "int64"},
+    {"name": "n_ground", "type": "int64", "description": "class 2 points"},
+    {"name": "heading_deg", "type": "float32", "unit": "deg", "description": "From the least-squares x(t), y(t) of all points; clockwise from grid north"},
+    {"name": "speed_mps", "type": "float32", "unit": "m/s"},
+    {"name": "cx_m", "type": "float64", "unit": "m", "description": "Midpoint of the pass's x extent (EPSG:6345). Used for linking."},
+    {"name": "cy_m", "type": "float64", "unit": "m"},
+    {"name": "xmin_m", "type": "float64", "unit": "m"},
+    {"name": "ymin_m", "type": "float64", "unit": "m"},
+    {"name": "xmax_m", "type": "float64", "unit": "m"},
+    {"name": "ymax_m", "type": "float64", "unit": "m"},
+    {"name": "scan_min_deg", "type": "float32", "unit": "deg"},
+    {"name": "scan_max_deg", "type": "float32", "unit": "deg"},
+    {"name": "nadir_x_m", "type": "float64", "unit": "m", "nullable": true, "description": "Diagnostic: ground track at mid time from |scan| <= flightlines.nadir_deg returns; null without enough nadir points"},
+    {"name": "nadir_y_m", "type": "float64", "unit": "m", "nullable": true},
+    {"name": "height_m", "type": "float32", "unit": "m", "nullable": true, "description": "Diagnostic: flying height above ground from cross-track offset ~ H tan(scan)"},
+    {"name": "psid_mode", "type": "int32", "description": "Most common point_source_id"},
+    {"name": "psid_share", "type": "float32", "description": "Share of the pass's points with psid_mode"},
+    {"name": "class12_share", "type": "float32"}
+  ]
+}
