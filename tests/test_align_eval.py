@@ -124,6 +124,17 @@ def test_cv_runs_and_orders_stages(params):
     assert res["stage1"]["rms_m"] < res["line_offset"]["rms_m"] and res["stage1"]["n"] > 0
 
 
+def test_cv_scores_only_test_kinds(params):
+    d, *_ = _synthetic(np.random.default_rng(3))
+    d["kind"] = np.where(d.index % 2 == 0, "natural_flat", "hard_other")
+    d.loc[d["kind"] == "natural_flat", "dz_m"] += 1.0  # narrow-shaped flat natural ground: never scored
+    p = dict(params["eval.cv"], repeats=1)
+    hard = params["align.stage1"]
+    stages = {"line_offset": lambda tr: stage1.fit(tr[tr["kind"] == "hard_other"], hard, stage1.TERMS_M3)}
+    assert cv.run(d, stages, p)[0]["rms_m"] < 0.1
+    assert cv.run(d, stages, dict(p, test_kinds=["natural_flat"]))[0]["rms_m"] > 0.5
+
+
 def test_axis_of():
     assert axis_of([0, 44, 46, 180, 269, 316]).tolist() == ["ns", "ns", "ew", "ns", "ew", "ns"]
 

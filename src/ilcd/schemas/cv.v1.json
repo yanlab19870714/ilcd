@@ -14,6 +14,7 @@
       "fold_unit",
       "segment_unit",
       "n_folds",
+      "test_kinds",
       "stages"
     ],
     "additionalProperties": false,
@@ -74,6 +75,13 @@
             }
           }
         }
+      },
+      "test_kinds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Surface kinds of the scored (narrow) patches"
       }
     }
   }

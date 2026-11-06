@@ -4,7 +4,9 @@ Folds are spatial units (eval.cv.fold_unit: cell (default), patch, or file): rep
 fixed seed; each fold refits the method on the other folds and predicts the held-out rows. Cell folds keep every
 patch on one side (a patch lies in one cell); file folds do not, since a patch crossing a file boundary is observed
 by passes of both files. The score is the exploration's "segment RMS" (fit_tradeoff.cv): residuals of held-out
-narrow (road-like) hard-ground patches, median per (eval.cv.segment_unit, pass), RMS over segments. With sloped
+narrow (road-like) patches of the kinds eval.cv.test_kinds (hard ground), median per (eval.cv.segment_unit, pass),
+RMS over segments. Narrowness is a shape test computed for every patch, so the kind filter is what keeps flat
+natural ground out of the test set. With sloped
 ground present, the NMAD of its held-out residuals is reported too (the exploration's hshift CV metric).
 Scan-angle knot ranges come from all rows, so folds share the spline support.
 """
@@ -50,11 +52,9 @@ def run(d: pd.DataFrame, stages: dict, p: dict) -> list[dict]:
             tr, te = d[f != k], d[f == k]
             if tr.empty or te.empty:
                 continue
-            nar = (
-                te["narrow"].to_numpy(bool) & (te["kind"] != "natural_slope").to_numpy()
-                if "kind" in te
-                else (te["narrow"].to_numpy(bool))
-            )
+            nar = te["narrow"].to_numpy(bool, copy=True)
+            if "kind" in te:
+                nar &= te["kind"].isin(p["test_kinds"]).to_numpy()
             slope = (te["kind"] == "natural_slope").to_numpy() if "kind" in te else np.zeros(len(te), bool)
             seg_key = (pd.Series(seg_unit[f == k][nar]) + "|" + te.loc[nar, "pass_id"].to_numpy()).to_numpy()
             for s, fit in stages.items():

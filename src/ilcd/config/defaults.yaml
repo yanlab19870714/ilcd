@@ -151,6 +151,8 @@ eval:
     fold_unit: cell               # cell | patch | file | patch_file. file folds leak: a patch crossing a file boundary
                                   # is seen by passes of both files; the others keep each patch on one side
     segment_unit: cell            # same choices; patch_file = the exploration's tile x pass segments
+    test_kinds: [road, hard_other]  # scored patches: narrow ones of these kinds (hard ground, as in the
+                                  # exploration); flat natural ground is narrow-tested too but must not be scored
   injection:                      # old: fit_field.injection / fit_tradeoff.inject
     radii_m: [50.0, 100.0, 200.0, 500.0, 1000.0]   # old: fit_field.INJECT_R
     amount_m: 0.10                # alternately + and - at the centres

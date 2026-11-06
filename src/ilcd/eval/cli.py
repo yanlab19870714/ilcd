@@ -26,6 +26,7 @@ def _cv(args):
             "fold_unit": pe["fold_unit"],
             "segment_unit": pe["segment_unit"],
             "n_folds": pe["folds"],
+            "test_kinds": list(pe["test_kinds"]),
             "stages": res,
         }
         step.output(io.write_json(doc, out / "cv.json", "cv"), "cv")

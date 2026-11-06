@@ -81,6 +81,7 @@ def test_json_write_validates(tmp_path):
         "fold_unit": "cell",
         "segment_unit": "cell",
         "n_folds": 5,
+        "test_kinds": ["road", "hard_other"],
         "stages": [{"name": "stage1", "rms_m": 0.0355, "nmad_m": 0.03, "n": 1000}],
     }
     p = io.write_json(doc, tmp_path / "cv.json", "cv")

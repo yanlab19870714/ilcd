@@ -759,6 +759,7 @@ Path: `{scope}/eval/cv.json`
   "fold_unit",
   "segment_unit",
   "n_folds",
+  "test_kinds",
   "stages"
  ],
  "additionalProperties": false,
@@ -819,6 +820,13 @@ Path: `{scope}/eval/cv.json`
      }
     }
    }
+  },
+  "test_kinds": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   },
+   "description": "Surface kinds of the scored (narrow) patches"
   }
  }
 }
