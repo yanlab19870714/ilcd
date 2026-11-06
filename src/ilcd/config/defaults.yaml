@@ -168,6 +168,8 @@ change:
     res_m: 2.0
     lod_z: 1.96
     min_points: 3                 # ground points per epoch in a pixel
+    sd_window_px: 3               # point SD of a pixel pooled over this many pixels square (3 = 6 m): one 2 m
+                                  # pixel's 3-4 points give an unstable SD and too low a LoD
     pad_m: 20.0                   # points read around the cell (horizontal shift, water gap test)
     water_gap_m: 4.0              # 3DEP pixel with no ground this far away is water (history.md section 5)
   m3c2:                           # old: m3c2_sites

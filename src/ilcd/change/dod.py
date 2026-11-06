@@ -25,14 +25,19 @@ def sys_sd(status: pd.DataFrame, cell: str) -> tuple[dict, float]:
     return dict(zip(rows["line_id"], rows["lod95_m"] / 1.96, strict=True)), fallback
 
 
-def _std(g: Grid, x, y, z, mean) -> np.ndarray:
+def _pooled_sd(g: Grid, x, y, z, mean, window: int) -> np.ndarray:
+    """Point SD about each pixel's own mean, pooled over a window x window block of pixels. A 2 m pixel holds 3-4
+    2011 ground points, too few for its own SD: by chance it is often tiny, and the LoD with it (2026-11-06, Monroe:
+    7-13% of pixels 'lowered' by 10-19 cm)."""
     i, j, m = g.index(x, y)
     k = j[m] * g.nx + i[m]
     d2 = (np.asarray(z, float)[m] - mean.ravel()[k]) ** 2
-    n = np.bincount(k, minlength=g.nx * g.ny)
-    s = np.bincount(k, weights=d2, minlength=g.nx * g.ny)
+    n = np.bincount(k, minlength=g.nx * g.ny).reshape(g.ny, g.nx).astype(float)
+    ssd = np.bincount(k, weights=d2, minlength=g.nx * g.ny).reshape(g.ny, g.nx)
+    dof = ndimage.uniform_filter(np.maximum(n - 1, 0), window, mode="constant")
+    ssd = ndimage.uniform_filter(ssd, window, mode="constant")
     with np.errstate(invalid="ignore", divide="ignore"):
-        return np.sqrt(s / np.maximum(n - 1, 1)).reshape(g.ny, g.nx)
+        return np.sqrt(np.where(dof > 0, ssd / dof, np.nan))
 
 
 def compute(cell: str, leg: dict, mod: dict, sys_by_line: dict, sys_fallback: float, pad_m: float, p: dict) -> dict:
@@ -47,8 +52,8 @@ def compute(cell: str, leg: dict, mod: dict, sys_by_line: dict, sys_fallback: fl
     n_m = g.count(mod["x"][mg], mod["y"][mg])
     z_l = g.mean(leg["x"][lg], leg["y"][lg], leg["z"][lg])
     z_m = g.mean(mod["x"][mg], mod["y"][mg], mod["z"][mg])
-    s_l = _std(g, leg["x"][lg], leg["y"][lg], leg["z"][lg], z_l)
-    s_m = _std(g, mod["x"][mg], mod["y"][mg], mod["z"][mg], z_m)
+    s_l = _pooled_sd(g, leg["x"][lg], leg["y"][lg], leg["z"][lg], z_l, p["sd_window_px"])
+    s_m = _pooled_sd(g, mod["x"][mg], mod["y"][mg], mod["z"][mg], z_m, p["sd_window_px"])
     lines = leg["line_id"][lg]
     s_line = np.array([sys_by_line.get(v, sys_fallback) for v in lines]) if lines.size else np.empty(0)
     i, j, m = g.index(leg["x"][lg], leg["y"][lg])

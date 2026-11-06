@@ -222,14 +222,22 @@ change leaves them out (their pixels have no 2011 value).
 **Level of detection.** The systematic part comes from `eval/status` (per cell and line, from held-out residuals):
 `s_sys = lod95 / 1.96`, weighted by each line's points in the pixel or cylinder. Lines without a status row, or
 `no_data`, use the median `lod95` of the scope's corrected rows.
-- DoD pixel: `lod = 1.96 * sqrt(s_leg^2 / n_leg + s_mod^2 / n_mod + s_sys^2)`, s = the pixel's point standard
-  deviations.
+- DoD pixel: `lod = 1.96 * sqrt(s_leg^2 / n_leg + s_mod^2 / n_mod + s_sys^2)`, n = the pixel's ground points,
+  s = their standard deviation about the pixel means, pooled over `change.dod.sd_window_px` pixels square. A 2 m
+  pixel holds only 3-4 2011 ground points; their own SD is unstable and made 7-13% of Monroe pixels "lowered".
 - M3C2: py4dgeo's level of detection with `registration_error = s_sys` of the cell.
 
 **DoD classes.** 2 m pixels with at least `change.dod.min_points` ground points per epoch. Stable, lowered or
 raised by `|dz| > lod`. Land lost to water: 2011 ground and 3DEP water. Land gained: the reverse. Water is a class-9
 return, or a 3DEP pixel with no ground within 4 m (history.md section 5). Masked: buildings in either epoch, or
 water in both.
+
+**What a DoD class means.** A class is a per-pixel test at 95%: on unchanged ground about 5% of pixels are
+flagged by chance, and a local residual offset of the correction (the spread of `status.bias_m` is about 3 cm)
+moves those false flags to one side. Monroe check (2026-11-06, 4 cells): roads with dz -1.4 cm and NMAD 3.8 cm had
+7.5% of pixels "lowered" and 3% "raised", as a normal distribution predicts; pixel medians instead of means changed
+nothing. The change product is therefore the object map, which needs area (`min_area_m2`) and magnitude
+(`min_magnitude_m`), not the DoD classes.
 
 **M3C2 and objects.** As in the exploration (history.md section 4): core points are 3DEP ground thinned to
 `change.m3c2.core_res_m`, normals from 3DEP ground, cylinders of `cylinder_radius_m`. M3C2 runs per cell with
