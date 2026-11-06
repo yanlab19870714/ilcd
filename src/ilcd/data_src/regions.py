@@ -29,10 +29,12 @@ def footprint(region: config.Region):
     """The region's own polygon (EPSG:6345), without buffer."""
     fp = region.footprint
     if "county" in fp:
+        names = [fp["county"]] if isinstance(fp["county"], str) else list(fp["county"])
         c = counties(region.params)
-        if fp["county"] not in c.index:
-            raise ValueError(f"region {region.name}: no county {fp['county']!r} (names as in the Census file)")
-        return c.loc[fp["county"], "geometry"]
+        missing = [n for n in names if n not in c.index]
+        if missing:
+            raise ValueError(f"region {region.name}: no county {missing} (names as in the Census file)")
+        return unary_union(list(c.loc[names, "geometry"]))
     with open(paths.config_dir() / fp["polygon"]) as f:
         gj = json.load(f)
     geoms = [shape(feat["geometry"]) for feat in gj["features"]]

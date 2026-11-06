@@ -1,0 +1,6 @@
+name: bartholomew_jackson
+description: Bartholomew and Jackson counties as one scope, the first cross-county one. Its model corrects site eastfork_doug.
+footprint:
+  county: [Bartholomew, Jackson]
+notes:
+  - "Refactor step 4: lines flown across the county line are linked and solved once; the two county regions are the per-county checks."

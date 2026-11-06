@@ -1,13 +1,48 @@
 {
-  "contract": "site", "version": 1, "kind": "geojson", "owner": "config", "status": "draft",
+  "contract": "site",
+  "version": 1,
+  "kind": "geojson",
+  "owner": "config",
+  "status": "draft",
   "description": "A site: where change is mapped, viewed and labelled. Never affects the correction. Human-written GeoJSON in EPSG:4326 (RFC 7946).",
   "path": "config/sites/{site}.geojson",
-  "key": ["site"],
-  "geometry": {"type": "Polygon", "crs": "EPSG:4326"},
+  "key": [
+    "site"
+  ],
+  "geometry": {
+    "type": "Polygon",
+    "crs": "EPSG:4326"
+  },
   "columns": [
-    {"name": "site", "type": "string"},
-    {"name": "kind", "type": "string", "enum": ["box", "river_reach", "county"]},
-    {"name": "source", "type": "string", "description": "Who defined it and why"},
-    {"name": "regions", "type": "list<string>", "nullable": true, "description": "Regions covering it; derived from the polygon when absent"}
+    {
+      "name": "site",
+      "type": "string"
+    },
+    {
+      "name": "kind",
+      "type": "string",
+      "enum": [
+        "box",
+        "river_reach",
+        "county"
+      ]
+    },
+    {
+      "name": "source",
+      "type": "string",
+      "description": "Who defined it and why"
+    },
+    {
+      "name": "regions",
+      "type": "list<string>",
+      "nullable": true,
+      "description": "Regions covering it; derived from the polygon when absent"
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "nullable": true,
+      "description": "Scope whose model corrects the site's 2011 points (region:<name> or statewide); statewide when absent"
+    }
   ]
 }

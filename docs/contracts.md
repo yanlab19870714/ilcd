@@ -1121,8 +1121,20 @@ Path: `config/regions/{region}.yaml`
    "maxProperties": 1,
    "properties": {
     "county": {
-     "type": "string",
-     "description": "Indiana county name as in the Census file"
+     "oneOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "minItems": 2,
+       "uniqueItems": true
+      }
+     ],
+     "description": "Indiana county name as in the Census file, or a list of them (a cross-county region: their union)"
     },
     "polygon": {
      "type": "string",
@@ -1158,6 +1170,7 @@ Geometry: Polygon in EPSG:4326
 | `kind` | string |  |  | One of: box, river_reach, county. |
 | `source` | string |  |  | Who defined it and why |
 | `regions` | list<string> |  | yes | Regions covering it; derived from the polygon when absent |
+| `scope` | string |  | yes | Scope whose model corrects the site's 2011 points (region:<name> or statewide); statewide when absent |
 
 ## common
 

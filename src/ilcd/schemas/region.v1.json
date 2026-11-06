@@ -10,7 +10,7 @@
       "footprint": {
         "type": "object", "additionalProperties": false, "minProperties": 1, "maxProperties": 1,
         "properties": {
-          "county": {"type": "string", "description": "Indiana county name as in the Census file"},
+          "county": {"oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}, "minItems": 2, "uniqueItems": true}], "description": "Indiana county name as in the Census file, or a list of them (a cross-county region: their union)"},
           "polygon": {"type": "string", "description": "Path to a GeoJSON polygon, relative to the config directory"}
         }
       },

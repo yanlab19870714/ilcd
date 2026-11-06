@@ -45,6 +45,8 @@ def test_repository_configs_are_valid():
     assert "eastfork_doug" in config.site_names()
     site = config.load_site("eastfork_doug")
     assert site["features"][0]["properties"]["regions"] == ["bartholomew", "jackson"]
+    assert site["features"][0]["properties"]["scope"] == "region:bartholomew_jackson"
+    assert config.load_region("bartholomew_jackson").footprint["county"] == ["Bartholomew", "Jackson"]
     overrides = config.load_delivery_overrides()
     assert overrides["W_Carroll"]["psid_meaning"] == "line"
 
