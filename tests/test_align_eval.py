@@ -104,6 +104,20 @@ def test_horizontal_shift_recovered_and_pooled(params):
     assert np.std(d["dz_m"] - m.predict(d)) < 0.012
 
 
+def test_slope_offset_keeps_sloped_bias_out_of_line_offsets(params):
+    rng = np.random.default_rng(5)
+    d, dz0, _ = _synthetic(rng)
+    d["heading_deg"] = 0.0
+    d["gx"], d["gy"] = rng.normal(0, 0.2, len(d)), rng.normal(0, 0.2, len(d))
+    d["kind"] = np.where(np.arange(len(d)) % 2 == 0, "natural_slope", "road")
+    d.loc[d["kind"] == "natural_slope", "dz_m"] += 0.03  # sloped ground 3 cm off after correction
+    p = dict(params["align.stage1"], hshift_min_obs=10**9)
+    off = {m: stage1.fit(d, dict(p, slope_offset=m), stage1.TERMS_S1H) for m in ("none", "block")}
+    err = {m: np.mean([abs(off[m].lines[k] - v) for k, v in dz0.items()]) for m in off}
+    assert err["block"] < 0.003 < err["none"]
+    assert all(abs(v - 0.03) < 0.003 for v in off["block"].slope_off.values())
+
+
 def test_unseen_line_uses_median_offset(params):
     d, *_ = _synthetic(np.random.default_rng(1))
     m = stage1.fit(d[d["line_id"] != "abs@5.0"], params["align.stage1"], terms=stage1.TERMS_M3)

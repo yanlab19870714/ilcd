@@ -136,8 +136,12 @@ align:
                                   # horizontal shift is fitted (line_hshift); [all] = every kind
     modern_reference_batch: auto  # 3DEP batch fixed at offset 0 (auto = the one with most observations)
     trend: block                  # one along-track trend per block (per-line trends overfit)
-    hshift_min_obs: 30            # PROVISIONAL: fewer sloped-ground observations -> the line uses its block's shift
-                                  # (the exploration's v3d pooled lines with < 1000 steep points)
+    hshift_min_obs: 30            # fewer sloped-ground observations -> the line uses its block's shift. CV is
+                                  # flat from 30 to 1000 (Monroe, Bartholomew 2026-11-06): nearly every line has more
+    slope_offset: block           # none | block | line: a nuisance offset of sloped-ground rows, so that they inform
+                                  # the horizontal shift but not the vertical terms. Sloped ground sits 1-4 cm off
+                                  # flat ground after correction (vegetation, classification); without it Monroe's
+                                  # hard-ground CV rose 4.84 -> 5.00 cm with the shift, with it 4.75 cm
   stage2:
     spacing_m: 1000.0             # B-spline knot spacing of the per-line field; old: final_fit h_km=1
     lam: 1000.0                   # smoothness weight; old: final_fit default

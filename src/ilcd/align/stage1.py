@@ -14,7 +14,9 @@ the most observations fixed at 0 (align.modern_reference_batch); with a single b
     left = left_L + b_left * scan,   forward = fwd_L + b_fwd * scan
 (h the pass heading), so on ground with 3DEP gradient g the observation 2011 - 3DEP gains -(g . s). left_L, fwd_L are
 per line for lines with at least align.stage1.hshift_min_obs sloped-ground observations; the others share their
-block's (pooled, as the exploration's v3d); b_left, b_fwd are per block.
+block's (pooled, as the exploration's v3d); b_left, b_fwd are per block. Sloped-ground rows also get a nuisance
+offset (align.stage1.slope_offset, per block by default) so that their systematic 1-4 cm departure from flat
+ground does not leak into the line offsets; it corrects observations only, never points.
 """
 
 from dataclasses import dataclass, field
@@ -52,6 +54,7 @@ class Stage1:
     modern: dict = field(default_factory=dict)  # 3DEP batch -> offset (reference batch 0)
     hshift: dict = field(default_factory=dict)  # line_id -> (left, forward, pooled)
     hscan: dict = field(default_factory=dict)  # block_id -> (b_left, b_fwd) per degree of scan angle
+    slope_off: dict = field(default_factory=dict)  # block or line -> offset of sloped-ground rows (nuisance)
     meta: dict = field(default_factory=dict)
 
     def predict(self, d: pd.DataFrame) -> np.ndarray:
@@ -68,6 +71,10 @@ class Stage1:
             left = left + np.array([v[0] for v in bs]) * scan
             fwd = fwd + np.array([v[1] for v in bs]) * scan
             out += cl * left + cf * fwd
+        if self.slope_off and "kind" in d:
+            m = (d["kind"] == "natural_slope").to_numpy()
+            key = d["line_id"] if self.meta.get("slope_offset") == "line" else d["block_id"]
+            out[m] += key[m].map(self.slope_off).fillna(0.0).to_numpy(float)
         if self.modern and "modern_batch" in d:
             out += d["modern_batch"].map(self.modern).fillna(0.0).to_numpy(float)
         if "block_scan_spline" in self.terms:
@@ -129,6 +136,16 @@ def fit(d: pd.DataFrame, p: dict, terms=TERMS_S1, ranges: dict | None = None) ->
             Hb[m & pooled, 4 * j], Hb[m & pooled, 4 * j + 1] = cl[m & pooled], cf[m & pooled]
             Hb[m, 4 * j + 2], Hb[m, 4 * j + 3] = cl[m] * scan[m], cf[m] * scan[m]
         cols += [H, Hb]
+    slope_mode = p["slope_offset"] if "line_hshift" in terms else "none"
+    slope_keys = []
+    if slope_mode != "none":
+        sm = (d["kind"] == "natural_slope").to_numpy()
+        slope_key = d["line_id"] if slope_mode == "line" else d["block_id"]
+        slope_keys = sorted(slope_key[sm].unique())
+        S_off = np.zeros((n, len(slope_keys)))
+        for j, kk in enumerate(slope_keys):
+            S_off[sm & (slope_key == kk).to_numpy(), j] = 1.0
+        cols.append(S_off)
     k = p["scan_knots"]
     nb = k + 2
     if "block_scan_spline" in terms:
@@ -168,6 +185,8 @@ def fit(d: pd.DataFrame, p: dict, terms=TERMS_S1, ranges: dict | None = None) ->
             for lid in d.loc[(d["block_id"] == b) & ~d["line_id"].isin(own), "line_id"].unique():
                 hshift[lid] = (pl, pf, True)
         off += 4 * len(pooled_blocks)
+    slope_off = {kk: float(coef[off + j]) for j, kk in enumerate(slope_keys)}
+    off += len(slope_keys)
     spline = {}
     if n_sp:
         spline = {b: (*ranges[b], k, coef[off + j * nb : off + (j + 1) * nb]) for j, b in enumerate(blocks)}
@@ -180,5 +199,6 @@ def fit(d: pd.DataFrame, p: dict, terms=TERMS_S1, ranges: dict | None = None) ->
         modern=modern,
         hshift=hshift,
         hscan=hscan,
-        meta={"n_obs": n, "modern_ref": ref if batches else None},
+        slope_off=slope_off,
+        meta={"n_obs": n, "modern_ref": ref if batches else None, "slope_offset": slope_mode},
     )

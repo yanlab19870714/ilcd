@@ -196,11 +196,21 @@ observation sets define the same way, patches at least half on OSM roads:
 | stage 1 | 4.83 cm | 4.96 cm |
 | stage 2 | 3.76 cm | 3.69 cm |
 
-**Open issue: horizontal shift on hard ground.** In Monroe the horizontal shift raises the hard-ground segment
-RMS (4.84 -> 5.00 cm) while it lowers the narrow NMAD (4.89 -> 4.66 cm) and the sloped-ground NMAD (8.43 -> 6.78 cm).
-In Carroll it is neutral on hard ground. Stage 2 removes the difference in both regions. To look at with the
-provisional `hshift_min_obs` (30): the shift is fitted on sloped ground, and a line with few sloped observations in
-forest may get a shift that hard ground does not support.
+**Resolved: horizontal shift on hard ground (2026-11-06).** In Monroe the shift raised the hard-ground segment RMS
+(4.84 -> 5.00 cm). The threshold was not the cause: CV is the same for `hshift_min_obs` 30, 100, 300 and 1000
+(nearly every line has more sloped observations; p10 per line 312 in Monroe, 109 in Bartholomew), and pooling every
+line is worse (5.05 cm). The cause was the sloped-ground observations themselves: they joined the whole stage-1 fit
+and, sitting 1-4 cm off flat ground after correction, pulled the line offsets. A nuisance offset for sloped rows
+(`align.stage1.slope_offset`, per block) fixes it:
+
+| Sloped-ground offset | Monroe stage 1 + shift | Monroe stage 2 | Bartholomew stage 1 + shift | Bartholomew stage 2 |
+|---|---|---|---|---|
+| none (before) | 5.00 cm / slope 6.78 | 3.93 cm | 5.40 cm / slope 7.05 | 3.75 cm |
+| per block (default) | 4.75 cm / slope 6.75 | 3.92 cm | 5.39 cm / slope 7.04 | 3.75 cm |
+| per line | 4.74 cm / slope 6.74 | 3.90 cm | 5.38 cm / slope 7.03 | 3.75 cm |
+
+Fitted offsets: Monroe +0.9 to +2.4 cm, Bartholomew -3.9 to +2.1 cm per block. Per block is the default: per line is
+0.01 cm better for a hundred more parameters, and the departure comes from ground cover, not from a line.
 
 Injection, median absorbed share (stage 2): 0.4% at 200 m, 3.4% at 500 m, 13.2% at 1000 m.
 
