@@ -60,6 +60,23 @@ at `/N/project/yanlab_space/indiana_lidar/legacy_code/indiana-lidar_2026-11-05.t
   - The overlapping points come from two different flights: no shared GPS time, and nearest neighbours 0.3 m apart.
   - These overlaps give tie observations between blocks.
 
+### 1.5 Copies of the legacy data in the public EPT bucket
+
+The 2011–13 survey is also in the USGS public EPT bucket: `IN_Statewide-<County>Co_2011`, `USGS_LPC_IN_ET_*_2012`,
+`USGS_LPC_IN_WT_*_2013`, `USGS_LPC_IN_Monroe_2011_LAS_2016` and others. These are the same points as the OT files,
+re-hosted unchanged. This was *verified* 2026-11-05 on one tile each of Carroll and Monroe
+(`runs/2026-11-05_ept2011_check`):
+
+- GPS times are identical. Monroe is in week seconds there too.
+- Points paired by GPS time differ by 0.000 m horizontally (4–5 mm scatter from rounding) and 0.000 m vertically
+  (feet to metres).
+- Only 56–65% of points keep the same class code, probably class 12 recoded on conversion to LAS 1.4. This was not
+  checked.
+
+So USGS kept OT's lon/lat as they were. The EPT copies cannot settle the datum question; ilcd's own test does. They
+must never be used as the 3DEP reference (design.md section 6.1). They could serve as a second source of legacy
+points cut by area.
+
 ## 2. Flight lines
 
 - **Linking rule.** Passes are linked when:
