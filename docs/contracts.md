@@ -399,7 +399,7 @@ Geometry: Polygon in EPSG:6345
 | `legacy_dz_m` | float32 | m | yes | Median 2011 minus 3DEP over all its 2011 points (all passes pooled); used by the change screen |
 | `legacy_se_m` | float32 | m | yes |  |
 | `osm_id` | int64 |  | yes |  |
-| `cdl_class` | int16 |  | yes | USDA CDL class at the patch (majority), if available |
+| `cdl_crop_share` | float32 |  |  | Share of its cells cultivated in any of refs.screen.cdl_years (USDA CDL) |
 | `excluded` | bool |  |  |  |
 | `exclude_reason` | string |  | yes | One of: cropland, water, too_steep, too_rough, too_small, change_suspect, building_change. |
 | `geometry` | geometry |  |  |  |

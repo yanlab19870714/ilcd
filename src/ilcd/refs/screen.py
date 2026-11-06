@@ -8,7 +8,8 @@ water (old fit_field.WATER_BUF): patches within refs.screen.water_buffer_m of OS
 (refs.screen.water_kinds); banks and floodplain edges really change. Drains and canals do not count: in farm
 counties they run along most roads. These patches are left out of the neighbour test as well.
 
-Sloped natural ground is tested among sloped ground only, since its offsets include slope x horizontal shift.
+Each surface family (hard ground, roofs, flat natural ground, sloped ground) is tested among itself: their noise
+differs, and sloped ground's offsets include slope x horizontal shift.
 
 gross_cell (old fit_field.load): every patch of a cell whose median observation (of unflagged patches) is more than
 refs.screen.cell_gross_m from the scope median; alignment errors are centimetres, so this is real change.
@@ -21,6 +22,16 @@ from scipy.spatial import cKDTree
 
 from ..common import contracts, ids
 from ..common.raster import nmad
+
+# surfaces compared with each other in the change test: their noise and their response to a horizontal shift differ
+FAMILY = {
+    "road": "hard",
+    "hard_other": "hard",
+    "roof_flat": "roof",
+    "roof_sloped": "roof",
+    "natural_flat": "natural_flat",
+    "natural_slope": "natural_slope",
+}
 
 
 def _weighted_median(v: np.ndarray, w: np.ndarray) -> float:
@@ -89,12 +100,11 @@ def screen(patches: pd.DataFrame, obs: pd.DataFrame, p: dict) -> pa.Table:
     near = near_water(patches, p)
     wt = pd.DataFrame({"patch_id": patches.loc[near, "patch_id"].to_numpy(), "deviation_m": np.nan, "reason": "water"})
     patches = patches[~near]
-    # sloped ground carries the horizontal-shift signal (slope x shift), so it is compared only with sloped ground,
-    # and the cell-level test uses hard ground only
-    slope = patches["kind"] == "natural_slope"
-    cs = pd.concat([change_suspects(patches[~slope], p), change_suspects(patches[slope], p)], ignore_index=True)
+    # each surface family is tested among itself; the cell-level test uses hard ground only
+    fam = patches["kind"].map(FAMILY).fillna("other")
+    cs = pd.concat([change_suspects(patches[fam == f], p) for f in sorted(fam.unique())], ignore_index=True)
     cs = cs.assign(reason="change_suspect")
-    hard_obs = obs[obs["patch_id"].map(lambda s: ids.parse_patch(s)[1]) != "natural_slope"]
+    hard_obs = obs[obs["patch_id"].map(lambda s: FAMILY.get(ids.parse_patch(s)[1])) == "hard"]
     gc = gross_cells(hard_obs, set(cs["patch_id"]) | set(wt["patch_id"]), p).assign(reason="gross_cell")
     gc = gc[~gc["patch_id"].isin(cs["patch_id"])]
     gc = gc[~gc["patch_id"].isin(wt["patch_id"])]

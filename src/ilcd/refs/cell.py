@@ -11,7 +11,8 @@ error 1.2533 max(NMAD, 1 cm) / sqrt(n)). Two passes on one patch give an overlap
 
 Sloped natural ground (refs.slope) gives the observations of the horizontal-shift term: its residual to the plane
 moves by slope x shift, so only gross errors (refs.slope.max_dz_m) are dropped there. Roofs and flat natural ground
-are added in later steps.
+are added later. Flat natural ground (refs.natural) covers forests and fields without hard ground; natural and
+hard-other patches cultivated in refs.screen.cdl_years (CDL) are kept but excluded, without observations.
 """
 
 import numpy as np
@@ -25,7 +26,7 @@ from ..common import contracts, crs, grid, ids, io, paths
 from ..common.log import get_logger
 from ..common.manifest import Step
 from ..common.raster import Grid, fill_nearest, nmad, smooth
-from ..data_src import ancillary, osm, points
+from ..data_src import ancillary, cdl, osm, points
 from .planes import plane_residual, window_planes
 
 log = get_logger(__name__)
@@ -82,6 +83,22 @@ def slope_patches(G: Grid, P: dict, taken: np.ndarray, interior: np.ndarray, p: 
             & (P["slope"] <= p["max_slope_deg"])
             & (P["rms"] < p["max_rms_m"])
         )
+    ok &= ~taken & interior
+    lab, n = ndimage.label(ok)
+    sizes = np.bincount(lab.ravel(), minlength=n + 1)
+    big = np.flatnonzero(sizes >= p["min_area_m2"] / G.res**2)
+    big = big[big > 0]
+    out = np.zeros_like(lab)
+    out[np.isin(lab, big)] = np.searchsorted(big, lab[np.isin(lab, big)]) + 1
+    return out
+
+
+def natural_flat(G: Grid, P: dict, taken: np.ndarray, interior: np.ndarray, p: dict) -> np.ndarray:
+    """Flat natural ground (also under canopy: only ground returns are used), where hard ground is absent: 3DEP
+    ground window plane flatter than refs.natural.max_slope_deg and planar (rms below max_rms_m), not already taken;
+    4-connected regions of at least min_area_m2. Labels 1..K."""
+    with np.errstate(invalid="ignore"):
+        ok = (P["n"] >= p["min_points"]) & (P["slope"] < p["max_slope_deg"]) & (P["rms"] < p["max_rms_m"])
     ok &= ~taken & interior
     lab, n = ndimage.label(ok)
     sizes = np.bincount(lab.ravel(), minlength=n + 1)
@@ -184,10 +201,19 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
     lab, P, _ = hard_ground(G, m, _ndvi_on(G, cell, pg["ndvi_year"]), interior, pg)
     k_hard = int(lab.max())
     sl = slope_patches(G, P, lab > 0, interior, params.section("refs.slope"))
-    lab = np.where(sl > 0, sl + k_hard, lab)  # labels 1..k_hard hard ground, k_hard+1..k sloped ground
+    lab = np.where(sl > 0, sl + k_hard, lab)  # labels 1..k_hard hard ground, then sloped, then flat natural ground
+    k_slope = int(lab.max())
+    nf = natural_flat(G, P, lab > 0, interior, params.section("refs.natural"))
+    lab = np.where(nf > 0, nf + k_slope, lab)
     k = int(lab.max())
     if k == 0:
-        return *empties, "no hard or sloped ground"
+        return *empties, "no reference surface"
+    ps = params.section("refs.screen")
+    crop = cdl.crop_mask(G, ps["cdl_years"], params["data_src.state_fips"])
+    with np.errstate(invalid="ignore", divide="ignore"):
+        crop_share = np.bincount(lab.ravel(), crop.ravel().astype(float), k + 1) / np.bincount(
+            lab.ravel(), minlength=k + 1
+        )
 
     # 2011 points on patches, residual to the 3DEP window plane
     leg = points.read_legacy(cell, params)
@@ -199,7 +225,7 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
     sel = np.isin(leg["cls"], po["classes"]) & (pid > 0)
     r = plane_residual(G, P, leg["x"][sel], leg["y"][sel], leg["z"][sel])
     ok = np.isfinite(r)
-    hard = pid[sel] <= k_hard
+    hard = (pid[sel] <= k_hard) | (pid[sel] > k_slope)  # flat surfaces: cell-median outlier rule
     if (ok & hard).any():  # hard ground: points far from the cell's median residual are not ground
         ok &= ~hard | (np.abs(r - np.median(r[ok & hard])) < po["outlier_m"])
     # sloped ground: a horizontal shift moves the residual by slope x shift, so only gross errors are dropped
@@ -242,8 +268,17 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
         batch_of[q] = m["parts"][int(np.bincount(parts).argmax())] if parts.size else m["parts"][0]
     road = _road_share(lab, G, k, pg)
     kind = {
-        q: "natural_slope" if q > k_hard else "road" if road[q] >= pg["road_share"] else "hard_other"
+        q: "natural_flat"
+        if q > k_slope
+        else "natural_slope"
+        if q > k_hard
+        else "road"
+        if road[q] >= pg["road_share"]
+        else "hard_other"
         for q in range(1, k + 1)
+    }
+    cropland = {
+        q: kind[q] in ("hard_other", "natural_flat") and crop_share[q] >= ps["cdl_max_share"] for q in range(1, k + 1)
     }
     pid_of = {q: ids.patch_id(cell, kind[q], q) for q in range(1, k + 1)}
     dist_water = _water_distance(polys, cell, params["refs.screen.water_search_m"])
@@ -257,6 +292,7 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
                 "patch_id": pid_of[q],
                 "kind": kind[q],
                 "source": "geometry" if q > k_hard else "ndvi",
+                "cdl_crop_share": float(crop_share[q]),
                 "modern_batch": batch_of[q],
                 "area_m2": float(area[q]),
                 "slope_deg": float(slope[q]),
@@ -271,9 +307,8 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
                 "legacy_dz_m": float(pr["median"]) if pr is not None else None,
                 "legacy_se_m": float(1.2533 * max(pr["nmad"], 0.01) / np.sqrt(pr["n"])) if pr is not None else None,
                 "osm_id": None,
-                "cdl_class": None,
-                "excluded": False,
-                "exclude_reason": None,
+                "excluded": cropland[q],
+                "exclude_reason": "cropland" if cropland[q] else None,
                 "geometry": polys[q],
             }
         )
@@ -284,7 +319,7 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
     # observations per (patch, pass)
     o = []
     for (q, pss), v in D.groupby(["patch", "pass_id"]):
-        if len(v) < po["min_points"]:
+        if len(v) < po["min_points"] or cropland[int(q)]:
             continue
         rr = v["r"].to_numpy()
         o.append(

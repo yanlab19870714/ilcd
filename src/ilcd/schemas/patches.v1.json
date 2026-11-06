@@ -118,10 +118,9 @@
       "nullable": true
     },
     {
-      "name": "cdl_class",
-      "type": "int16",
-      "nullable": true,
-      "description": "USDA CDL class at the patch (majority), if available"
+      "name": "cdl_crop_share",
+      "type": "float32",
+      "description": "Share of its cells cultivated in any of refs.screen.cdl_years (USDA CDL)"
     },
     {
       "name": "excluded",

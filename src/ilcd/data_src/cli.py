@@ -90,6 +90,15 @@ def _osm(args):
     print(out)
 
 
+def _cdl(args):
+    from . import cdl
+
+    params = config.default_params()
+    with Step("data_src.cdl", out_dir=paths.cache_ancillary("cdl"), params={}) as s:
+        for y in params["refs.screen.cdl_years"]:
+            s.output(cdl.fetch(y, params["data_src.state_fips"]))
+
+
 def _datum_report(args):
     from . import catalog, datum
 
@@ -157,6 +166,7 @@ def register(sub):
     s.add_argument("delivery", nargs="+")
     s.add_argument("--redecide", action="store_true", help="re-apply the decision rule to the existing samples")
     s.set_defaults(fn=_datum)
+    p.add_parser("cdl", help="USDA Cropland Data Layer of the state for refs.screen.cdl_years").set_defaults(fn=_cdl)
     p.add_parser("osm", help="statewide OSM roads, buildings and water from the Geofabrik extract").set_defaults(
         fn=_osm
     )

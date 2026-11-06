@@ -8,6 +8,7 @@
 # Usage: sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/make_env.sh <main|m3c2> <repo dir>
 # Needs ILCD_ENV_ROOT; ILCD_CONDA_MODULE (default conda/26.3.2) names the cluster's conda module.
 set -eo pipefail
+umask 002   # the data store is shared by the group
 echo "start $(date) on $(hostname)"
 module load "${ILCD_CONDA_MODULE:-conda/26.3.2}"
 source "$(conda info --base)/etc/profile.d/conda.sh"

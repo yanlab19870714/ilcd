@@ -92,7 +92,8 @@ refs:
     ndvi_margin: 0.10
   natural:                        # flat natural ground (also under canopy). PROVISIONAL: new in ilcd, tune on the Monroe forest cells
     max_slope_deg: 5.0
-    max_rough_m: 0.05
+    max_rms_m: 0.05               # 3 m window-plane rms of 3DEP ground
+    min_points: 12
     min_area_m2: 100.0
   slope:                          # sloped natural ground for the horizontal-shift term; old: hshift_fit
     min_slope_deg: 10.0           # old MIN_SLOPE
@@ -112,7 +113,8 @@ refs:
     water_buffer_m: 100.0         # patches closer to OSM water are screened out: banks move; old: fit_field.WATER_BUF
     water_kinds: [water_body, river, stream]   # not drain or canal: in farm counties they run along most roads
     water_search_m: 500.0         # distance to any water is recorded on patches up to this far (information)
-    use_cdl: true                 # exclude cropland patches (not implemented in the old code; not applied yet)
+    cdl_years: [2012, 2018]       # natural and hard-other patches cultivated in any of these years are excluded
+    cdl_max_share: 0.5            # ... when at least this share of their cells is cultivated (roads are exempt)
   obs:                            # old: patch_scan.py, measure_patches.py
     classes: [2, 12]              # 2011 classes measured on hard ground (class-12 overlap points included)
     outlier_m: 0.30               # drop points farther than this from the cell median residual
