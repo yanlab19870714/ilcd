@@ -968,9 +968,9 @@ Key: `cell_id`, `line_id`
 
 ### `dod.v1` (raster, owner change, draft)
 
-DEM of difference of one cell on the 2 m grid: 3DEP minus corrected 2011 ground, with a per-pixel level of detection.
+DEM of difference of one cell on the 2 m grid, made with the model of one scope: 3DEP minus corrected 2011 ground, with a per-pixel level of detection.
 
-Path: `cells/{cell_id}/change/dod.tif`  
+Path: `{scope}/change/dod/{cell_id}/dod.tif`  
 
 Raster: EPSG:6345, 2.0 m, 500 x 500 px
 
@@ -986,9 +986,9 @@ Raster: EPSG:6345, 2.0 m, 500 x 500 px
 
 ### `m3c2.v1` (table, owner change, draft)
 
-M3C2 distances at core points of one site (3DEP ground thinned to change.m3c2.core_res_m).
+M3C2 distances at core points of one cell of a site (3DEP ground thinned to change.m3c2.core_res_m).
 
-Path: `sites/{site}/change/m3c2.parquet`  
+Path: `sites/{site}/change/m3c2/{cell_id}/m3c2.parquet`  
 Key: `core_id`  
 
 | column | type | unit | null | description |
@@ -1001,9 +1001,22 @@ Key: `core_id`
 | `lod_m` | float32 | m | yes |  |
 | `sig` | bool |  |  | |d_m| > lod_m |
 | `normal_scale_m` | float32 | m |  |  |
+| `normal_z` | float32 |  |  | Vertical component of the unit normal (oriented up); slope = arccos(normal_z) |
 | `n_legacy` | int32 |  |  |  |
 | `n_modern` | int32 |  |  |  |
-| `object_id` | string |  | yes | Change object the point belongs to |
+
+### `object_members.v1` (table, owner change, draft)
+
+Core points of each change object of a site (M3C2 objects): which significant core point of which cell belongs to which object.
+
+Path: `sites/{site}/change/object_members.parquet`  
+Key: `cell_id`, `core_id`  
+
+| column | type | unit | null | description |
+|---|---|---|---|---|
+| `cell_id` | string |  |  |  |
+| `core_id` | int64 |  |  |  |
+| `object_id` | string |  |  |  |
 
 ### `objects.v1` (vector, owner change, draft)
 

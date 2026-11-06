@@ -16,7 +16,6 @@ export ILCD_SLURM_ACCOUNT=<account>
 
 # Environments: built by a batch job, because solving them on a login node is slow
 sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/make_env.sh main ~/code/ilcd     # -> $ILCD_ENV_ROOT/ilcd
-sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/make_env.sh m3c2 ~/code/ilcd     # -> $ILCD_ENV_ROOT/ilcd-m3c2 (change.m3c2 only)
 
 # Snakemake profile: copy the template and fill in the account (config/profiles/<machine>/ is git-ignored)
 cp -r config/profiles/example config/profiles/bigred

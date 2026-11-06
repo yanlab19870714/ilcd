@@ -183,7 +183,8 @@ points cut by area.
   as water.
 - **Old-code crashes.** The old pipeline crashed on cells with no reference surfaces: seven Monroe forest and lake
   tiles, and four tiles clipped at the county line. In ilcd, empty is not an error.
-- **Conda environments.** py4dgeo upgrades numpy and pandas, so M3C2 has its own environment. The deep-learning
+- **Conda environments.** py4dgeo upgrades numpy and pandas, so M3C2 had its own environment (ilcd installs
+  py4dgeo 1.2.1 into the main environment without changing numpy). The deep-learning
   stack (torch 1.8.1 + CUDA 11.1) is pinned separately.
 
 ## 6. Where the exploratory results are

@@ -32,7 +32,7 @@ def test_contract_paths_match_paths_module():
 
     assert contracts.get("passes").path[0] == "files/{file_id}/passes.parquet"
     assert contracts.get("obs").path[0] == "cells/{cell_id}/refs/obs.parquet"
-    assert contracts.get("dod").path[0] == "cells/{cell_id}/change/dod.tif"
+    assert contracts.get("dod").path[0] == "{scope}/change/dod/{cell_id}/dod.tif"
     assert contracts.get("legacy_files").path[0] == "statewide/catalog/legacy_files.parquet"
     assert contracts.get("datum").path[0] == "statewide/deliveries/{delivery_id}/datum.json"
 

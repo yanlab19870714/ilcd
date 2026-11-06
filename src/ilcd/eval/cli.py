@@ -10,16 +10,23 @@ log = get_logger(__name__)
 def _cv(args):
     from ..align import inputs, method, stage1
     from ..align.cli import scope_params
-    from . import cv
+    from . import cv, status
 
     sc, params = scope_params(args.region)
     pa_, pe = params.section("align"), params.section("eval.cv")
     out = paths.scope_dir(sc) / "eval"
-    with Step("eval.cv", out_dir=out, params={"align": pa_, "eval.cv": pe}, unit=sc) as step:
+    ps = params.section("eval.status")
+    with Step("eval.cv", out_dir=out, params={"align": pa_, "eval.cv": pe, "eval.status": ps}, unit=sc) as step:
         d = inputs.assemble(sc, pa_, step)
         ranges = stage1.scan_ranges(d, pa_["stage1"])
         stages = _stages(method, stage1, pa_, ranges)
-        res = cv.run(d, stages, pe)
+        held = {}
+        res = cv.run(d, stages, pe, holdout=held)
+        saved = method.load(paths.model_dir(sc))
+        step.input(paths.model_dir(sc) / "model.json", "model")
+        field_lines = list(saved.model.s2.lines) if saved.model.s2 is not None else []
+        st = status.table(d, held["stage2"], pe["test_kinds"], field_lines, ps)
+        step.output(io.write_table(st, out / "status.parquet", "status"), "status")
         doc = {
             "scope": sc,
             "method": method.NAME,

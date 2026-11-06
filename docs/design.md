@@ -57,9 +57,10 @@ NAVD88/GEOID09, and is converted with the NOAA grids named in `data_src.geoid`.
   copy whole tiles into each county folder: 2,152 file names occur in more than one folder, and in 517 of them the
   copies differ in size but hold identical points. A pipeline keyed on county folders would therefore miss tie points
   in one place and count points three times in another.
-- **Per-location work is done per cell, not per region.** Patches, observations and rasters are computed once per
-  cell and shared by every region that covers the cell. Regions that overlap (through their buffers) can then never
-  disagree, or double-count, on the same ground.
+- **Per-location work is done per cell, not per region.** Patches, observations and their rasters are computed once
+  per cell and shared by every region that covers the cell. Regions that overlap (through their buffers) can then
+  never disagree, or double-count, on the same ground. Work that uses a model (change) is still done per cell, but
+  stored under the model's scope (section 7.1).
 - **Per-file work is done per file.** A pass is a property of a file and does not depend on the region asking.
 - **Observations refer to passes, not lines.** Linking can be redone in any scope (one region, or statewide) without
   measuring again. `line_id`s are only meaningful inside their scope.
@@ -175,7 +176,7 @@ also an error when one file, listed in two deliveries, gets a different decision
 ```
 statewide catalogs ─► files/<file_id>/passes ─► scope: lines, blocks ─┐
                        cells/<cell_id>/refs: patches, obs, overlap_obs ┴► scope: align/model ─► scope: eval
-                       cells/<cell_id>/change: dod  ◄── model ──► sites/<site>: m3c2, objects, viz, labels
+                                       scope: change/dod ◄── model ──► sites/<site>: m3c2, objects, viz, labels
 ```
 
 | Store | Path under `$ILCD_DATA_ROOT` | Written by |
@@ -183,9 +184,9 @@ statewide catalogs ─► files/<file_id>/passes ─► scope: lines, blocks ─
 | raw cache | `cache/legacy/<OT path>`, `cache/modern/<batch>/<cell_id>.laz`, `cache/ancillary/<source>/` | data_src |
 | statewide catalogs | `statewide/catalog/*.parquet`, `statewide/deliveries/<delivery_id>/datum.json` | data_src |
 | per file | `files/<file_id>/passes.parquet` | flightlines |
-| per cell | `cells/<cell_id>/refs/*.parquet`, `cells/<cell_id>/change/dod.tif` | refs, change |
-| per scope | `regions/<name>/…` or `statewide/scope/…`, with `flightlines/`, `align/model/`, `eval/`, `baselines/<method>/` | flightlines, align, eval, baselines |
-| per site | `sites/<site>/change/`, `sites/<site>/viz/`, `sites/<site>/labels/labels.geojson` | change, viz_label |
+| per cell | `cells/<cell_id>/refs/*.parquet` | refs |
+| per scope | `regions/<name>/…` or `statewide/scope/…`, with `flightlines/`, `align/model/`, `eval/`, `change/dod/`, `baselines/<method>/` | flightlines, align, eval, change, baselines |
+| per site | `sites/<site>/change/` (m3c2 per cell, objects), `sites/<site>/viz/`, `sites/<site>/labels/labels.geojson` | change, viz_label |
 
 All paths come from `ilcd.common.paths`; no module builds a data path by hand.
 
@@ -200,6 +201,42 @@ All paths come from `ilcd.common.paths`; no module builds a data path by hand.
 **Empty is not an error.** A file with no usable pass, or a cell with no patches (forest, lake), writes a valid empty
 output with `status: empty` in its manifest. Errors are for real problems: schema violations, datum ambiguity,
 time-encoding mismatch, missing inputs.
+
+### 7.1 Change detection (refactor step 4)
+
+**Which model corrects a place.** A correction depends on the scope that fitted it. A site names its scope
+(property `scope` of the site file; statewide when absent); eastfork_doug uses `region:bartholomew_jackson`. Change
+products therefore live under the scope or the site, never under a bare cell:
+
+| Product | Path | Unit of work |
+|---|---|---|
+| DoD | `{scope}/change/dod/<cell_id>/dod.tif` | cell |
+| M3C2 | `sites/<site>/change/m3c2/<cell_id>/m3c2.parquet` | cell of the site |
+| objects | `sites/<site>/change/objects.parquet` | site |
+
+**Frames.** `align.method.apply` corrects 2011 points into the frame of the model's reference 3DEP batch
+(vertical terms subtracted, horizontal shift moved back); `align.method.to_reference_batch` adds the fitted batch
+offset to 3DEP heights of other batches. Points that no pass of the model covers keep a flag `corrected = False`;
+change leaves them out (their pixels have no 2011 value).
+
+**Level of detection.** The systematic part comes from `eval/status` (per cell and line, from held-out residuals):
+`s_sys = lod95 / 1.96`, weighted by each line's points in the pixel or cylinder. Lines without a status row, or
+`no_data`, use the median `lod95` of the scope's corrected rows.
+- DoD pixel: `lod = 1.96 * sqrt(s_leg^2 / n_leg + s_mod^2 / n_mod + s_sys^2)`, s = the pixel's point standard
+  deviations.
+- M3C2: py4dgeo's level of detection with `registration_error = s_sys` of the cell.
+
+**DoD classes.** 2 m pixels with at least `change.dod.min_points` ground points per epoch. Stable, lowered or
+raised by `|dz| > lod`. Land lost to water: 2011 ground and 3DEP water. Land gained: the reverse. Water is a class-9
+return, or a 3DEP pixel with no ground within 4 m (history.md section 5). Masked: buildings in either epoch, or
+water in both.
+
+**M3C2 and objects.** As in the exploration (history.md section 4): core points are 3DEP ground thinned to
+`change.m3c2.core_res_m`, normals from 3DEP ground, cylinders of `cylinder_radius_m`. M3C2 runs per cell with
+the cell padded by `max_distance_m`, keeping core points inside the cell. Objects: significant core points
+(|d| > lod and |d| >= `change.objects.min_magnitude_m`), split by sign, clustered with DBSCAN over the whole site
+so that objects cross cell borders. M3C2 uses py4dgeo 1.2.1, installed in the main environment (its pip dependencies leave numpy alone; the
+exploration's separate environment is not needed).
 
 ## 8. Modules and the file-contract rule
 

@@ -162,3 +162,77 @@ def test_screen_flags_outlier_and_gross_cell(params):
     obs.loc[45:, "patch_id"] = "E0599N4300.R00001"
     gc = screen.gross_cells(obs, set(), p)
     assert set(gc["patch_id"]) == {"E0599N4300.R00001"}
+
+
+def _saved():
+    from ilcd.align import method
+
+    s1 = stage1.Stage1(
+        terms=stage1.TERMS_S1H,
+        lines={"abs@1.0": 0.20},
+        trend={"abs@0#B": 0.01},
+        spline={},
+        median_offset=0.05,
+        modern={"B2": -0.03},
+        hshift={"abs@1.0": (1.0, 0.0, False)},
+        hscan={"abs@0#B": (0.0, 0.0)},
+    )
+    members = pd.DataFrame(
+        {
+            "pass_id": ["W.f#0"],
+            "file_id": ["W.f"],
+            "t_start_s": [10.0],
+            "t_end_s": [20.0],
+            "line_id": ["abs@1.0"],
+            "axis": ["ns"],
+        }
+    )
+    return method.Saved(
+        model=method.Model(s1),
+        doc={},
+        members=members,
+        heading={"abs@1.0": 0.0},
+        block={"abs@1.0": "abs@0#B"},
+        origin={("abs@0#B", "ns"): 4300.0},
+    )
+
+
+def test_apply_corrects_covered_points_only():
+    from ilcd.align import method
+
+    saved = _saved()
+    pts = {
+        "x": np.array([500000.0, 500000.0]),
+        "y": np.array([4302000.0, 4302000.0]),
+        "z": np.array([100.0, 100.0]),
+        "t": np.array([15.0, 25.0]),
+        "scan_deg": np.zeros(2),
+        "part": np.zeros(2, int),
+        "parts": ["W.f"],
+    }
+    out = method.apply(saved, pts)
+    assert out["corrected"].tolist() == [True, False]
+    # covered: left shift 1 m with heading north puts the 2011 point 1 m west of the truth; vertical 0.20 + 0.01 * 2 km
+    assert np.isclose(out["x"][0], 500001.0) and np.isclose(out["z"][0], 100.0 - 0.22)
+    # not covered: the model's median offset, no shift
+    assert np.isclose(out["x"][1], 500000.0) and np.isclose(out["z"][1], 100.0 - 0.05)
+    assert np.isclose(method.to_reference_batch(saved, np.array([50.0]), "B2")[0], 49.97)
+
+
+def test_status_table(params):
+    from ilcd.eval import status
+
+    n = 40
+    d = pd.DataFrame(
+        {"cell": ["E0500N4300"] * n + ["E0501N4300"] * n, "line_id": ["a"] * n + ["b"] * n, "kind": ["road"] * (2 * n)}
+    )
+    rng = np.random.default_rng(0)
+    r = np.r_[rng.normal(0, 0.01, n), rng.normal(0.2, 0.01, n)]
+    t = status.table(d, r, ["road"], ["a"], params["eval.status"]).set_index("line_id")
+    assert t.loc["a", "status"] == "corrected" and t.loc["b", "status"] == "not_corrected"
+    assert np.isclose(t.loc["b", "lod95_m"], 1.96 * np.hypot(t.loc["b", "bias_m"], t.loc["b", "nmad_m"]))
+    held = {}
+    d2, *_ = _synthetic(np.random.default_rng(4))
+    p = dict(params["eval.cv"], repeats=2)
+    cv.run(d2, {"m3": lambda tr: stage1.fit(tr, params["align.stage1"], stage1.TERMS_M3)}, p, holdout=held)
+    assert np.isfinite(held["m3"]).all() and np.abs(held["m3"]).max() < 0.1

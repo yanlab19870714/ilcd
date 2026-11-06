@@ -167,13 +167,16 @@ change:
   dod:
     res_m: 2.0
     lod_z: 1.96
-    min_points: 3
+    min_points: 3                 # ground points per epoch in a pixel
+    pad_m: 20.0                   # points read around the cell (horizontal shift, water gap test)
+    water_gap_m: 4.0              # 3DEP pixel with no ground this far away is water (history.md section 5)
   m3c2:                           # old: m3c2_sites
     core_res_m: 1.0
     cylinder_radius_m: 1.5
     normal_radii_m: [1.0, 2.0, 4.0]
     max_distance_m: 10.0
-    registration_error_m: 0.05
+    pad_m: 20.0                   # points read around the cell (cylinders, horizontal shift)
+                                  # registration error: per cell from eval/status (design.md section 7.1)
   objects:                        # old: m3c2_objects
     min_magnitude_m: 0.30
     dbscan_eps_m: 2.5

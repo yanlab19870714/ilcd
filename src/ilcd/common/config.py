@@ -136,6 +136,22 @@ def load_site(name: str) -> dict:
     return obj
 
 
+def site_geometry(name: str):
+    """The site polygon in the project CRS (site files are EPSG:4326, RFC 7946)."""
+    import geopandas as gpd
+    from shapely.geometry import shape
+
+    from .crs import GEOGRAPHIC, PROJECT_CRS
+
+    g = shape(load_site(name)["features"][0]["geometry"])
+    return gpd.GeoSeries([g], crs=GEOGRAPHIC).to_crs(PROJECT_CRS).iloc[0]
+
+
+def site_scope(name: str) -> str:
+    """The scope whose model corrects the site (statewide when the site names none)."""
+    return load_site(name)["features"][0]["properties"].get("scope") or "statewide"
+
+
 def load_delivery_overrides() -> dict:
     p = paths.deliveries_config()
     return read_json(p, contracts.get("delivery_overrides")) if p.exists() else {}

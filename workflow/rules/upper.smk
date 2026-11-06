@@ -142,8 +142,8 @@ rule align_fit:
 
 
 rule eval_cv:
-    input: _m("regions/{region}/refs", "refs.screen")
-    output: _m("regions/{region}/eval", "eval.cv")
+    input: _m("regions/{region}/refs", "refs.screen"), _m("regions/{region}/align/model", "align.fit")
+    output: _m("regions/{region}/eval", "eval.cv")  # also status.parquet
     resources: runtime=360, mem_mb=96000, cpus_per_task=4
     shell: "ilcd eval cv {wildcards.region}"
 

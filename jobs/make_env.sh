@@ -5,7 +5,7 @@
 #SBATCH -t 2:00:00
 #SBATCH -J ilcd-env
 # Build (or update) a conda environment from envs/<name>.yml under $ILCD_ENV_ROOT and install ilcd into it.
-# Usage: sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/make_env.sh <main|m3c2> <repo dir>
+# Usage: sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/make_env.sh <main|dl> <repo dir>
 # Needs ILCD_ENV_ROOT; ILCD_CONDA_MODULE (default conda/26.3.2) names the cluster's conda module.
 set -eo pipefail
 umask 002   # the data store is shared by the group

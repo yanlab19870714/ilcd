@@ -1,7 +1,7 @@
 {
   "contract": "dod", "version": 1, "kind": "raster", "owner": "change", "status": "draft",
-  "description": "DEM of difference of one cell on the 2 m grid: 3DEP minus corrected 2011 ground, with a per-pixel level of detection.",
-  "path": "cells/{cell_id}/change/dod.tif",
+  "description": "DEM of difference of one cell on the 2 m grid, made with the model of one scope: 3DEP minus corrected 2011 ground, with a per-pixel level of detection.",
+  "path": "{scope}/change/dod/{cell_id}/dod.tif",
   "raster": {"crs": "EPSG:6345", "resolution_m": 2.0, "width": 500, "height": 500, "aligned_to": "cell", "cog": true},
   "bands": [
     {"name": "z_legacy_m", "dtype": "float32", "nodata": "nan", "description": "Mean corrected 2011 ground height in the pixel"},

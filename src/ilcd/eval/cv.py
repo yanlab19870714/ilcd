@@ -40,18 +40,22 @@ def folds(units: np.ndarray, n_folds: int, rng) -> dict:
     return dict(zip(u, rng.permutation(u.size) % n_folds, strict=True))
 
 
-def run(d: pd.DataFrame, stages: dict, p: dict) -> list[dict]:
-    """stages: name -> fit(train) returning an object with predict(test). p = params.section('eval.cv')."""
+def run(d: pd.DataFrame, stages: dict, p: dict, holdout: dict | None = None) -> list[dict]:
+    """stages: name -> fit(train) returning an object with predict(test). p = params.section('eval.cv').
+    holdout: if given, filled with stage name -> each row's held-out residual, averaged over the repeats."""
     unit = fold_units(d, p["fold_unit"])
     seg_unit = fold_units(d, p["segment_unit"])
     rng = np.random.default_rng(0)
     acc = {s: {"seg": [], "nar": [], "slope": []} for s in stages}
+    rsum = {s: np.zeros(len(d)) for s in stages}
+    rcnt = np.zeros(len(d))
     for _ in range(p["repeats"]):
         f = pd.Series(unit).map(folds(unit, p["folds"], rng)).to_numpy()
         for k in range(p["folds"]):
             tr, te = d[f != k], d[f == k]
             if tr.empty or te.empty:
                 continue
+            rcnt[f == k] += 1
             nar = te["narrow"].to_numpy(bool, copy=True)
             if "kind" in te:
                 nar &= te["kind"].isin(p["test_kinds"]).to_numpy()
@@ -59,9 +63,13 @@ def run(d: pd.DataFrame, stages: dict, p: dict) -> list[dict]:
             seg_key = (pd.Series(seg_unit[f == k][nar]) + "|" + te.loc[nar, "pass_id"].to_numpy()).to_numpy()
             for s, fit in stages.items():
                 r = te["dz_m"].to_numpy() - fit(tr).predict(te)
+                rsum[s][f == k] += r
                 acc[s]["nar"].append(r[nar])
                 acc[s]["slope"].append(r[slope])
                 acc[s]["seg"].append(pd.Series(r[nar]).groupby(seg_key).median().to_numpy())
+    if holdout is not None:
+        with np.errstate(invalid="ignore"):
+            holdout.update({s: v / rcnt for s, v in rsum.items()})
     out = []
     for s, a in acc.items():
         seg, nar, sl = np.concatenate(a["seg"]), np.concatenate(a["nar"]), np.concatenate(a["slope"])

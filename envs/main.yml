@@ -1,4 +1,4 @@
-# Main ilcd environment: every module except change/m3c2 (envs/m3c2.yml) and the deep-learning baselines (envs/dl.yml).
+# Main ilcd environment: every module except the deep-learning baselines (envs/dl.yml).
 # Create:  mamba env create -p $ILCD_ENV_ROOT/ilcd -f envs/main.yml   then   pip install -e . --no-deps
 name: ilcd
 channels:
@@ -32,3 +32,5 @@ dependencies:
   - pytest>=8
   - ruff>=0.6
   - pip
+  - pip:
+      - py4dgeo==1.2.1     # change.m3c2; the East Fork version (2026-10). Its pip dependencies leave numpy alone

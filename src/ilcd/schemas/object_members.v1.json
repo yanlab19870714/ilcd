@@ -1,0 +1,27 @@
+{
+  "contract": "object_members",
+  "version": 1,
+  "kind": "table",
+  "owner": "change",
+  "status": "draft",
+  "description": "Core points of each change object of a site (M3C2 objects): which significant core point of which cell belongs to which object.",
+  "path": "sites/{site}/change/object_members.parquet",
+  "key": [
+    "cell_id",
+    "core_id"
+  ],
+  "columns": [
+    {
+      "name": "cell_id",
+      "type": "string"
+    },
+    {
+      "name": "core_id",
+      "type": "int64"
+    },
+    {
+      "name": "object_id",
+      "type": "string"
+    }
+  ]
+}

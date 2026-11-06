@@ -12,6 +12,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
+import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
@@ -112,6 +113,41 @@ def write_empty_table(path, contract) -> Path:
     c.check_table(table)
     with atomic_path(path) as tmp:
         pq.write_table(table, tmp, compression="zstd")
+    return Path(path)
+
+
+def write_raster(bands: dict, transform, path, contract) -> Path:
+    """A multi-band Cloud-Optimised GeoTIFF in the project CRS. bands: name -> 2-D array, south-up as in
+    ilcd.common.raster.Grid (row 0 is the southern row); written north-up with `transform` (grid.pixel_grid).
+    Band order, names and dtypes come from the contract, which is checked after writing."""
+    import rasterio
+    from affine import Affine
+
+    from .crs import PROJECT_CRS
+
+    c = _contract(contract)
+    names = [b["name"] for b in c.bands]
+    if sorted(bands) != sorted(names):
+        raise ValueError(f"{c.tag}: bands {sorted(bands)}, expected {names}")
+    arrs = [np.flipud(np.asarray(bands[b["name"]], dtype=b["dtype"])) for b in c.bands]
+    h, w = arrs[0].shape
+    profile = {
+        "driver": "COG",
+        "width": w,
+        "height": h,
+        "count": len(arrs),
+        "dtype": c.bands[0]["dtype"],
+        "crs": PROJECT_CRS,
+        "transform": Affine(*transform),
+        "nodata": float("nan"),
+        "compress": "deflate",
+    }
+    with atomic_path(path) as tmp:
+        with rasterio.open(tmp, "w", **profile) as ds:
+            for k, (a, b) in enumerate(zip(arrs, c.bands, strict=True), start=1):
+                ds.write(a, k)
+                ds.set_band_description(k, b["name"])
+        c.check_raster(tmp)
     return Path(path)
 
 

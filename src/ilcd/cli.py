@@ -158,6 +158,9 @@ def main(argv=None):
     from .eval import cli as eval_cli
 
     eval_cli.register(sub)
+    from .change import cli as change_cli
+
+    change_cli.register(sub)
     args = ap.parse_args(argv)
     return args.fn(args) or 0
 
