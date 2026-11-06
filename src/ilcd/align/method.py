@@ -32,7 +32,7 @@ class Model:
 
 def rows(d, kinds) -> np.ndarray:
     """Rows of the given patch kinds; [all] means every row."""
-    return np.ones(len(d), bool) if "all" in kinds else d["kind"].isin(kinds).to_numpy()
+    return np.ones(len(d), bool) if "all" in kinds else d["kind"].isin(kinds).to_numpy(copy=True)
 
 
 def fit(d, params: dict, terms=stage1.TERMS_S1H, ranges=None, with_stage2: bool = True) -> Model:

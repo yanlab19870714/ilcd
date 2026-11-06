@@ -1,6 +1,6 @@
 """`ilcd refs ...` commands."""
 
-from ..common import config, ids, io, paths, scope
+from ..common import config, crs, ids, io, paths, scope
 from ..common.log import get_logger
 from ..common.manifest import Step
 from ..data_src.cli import _ids
@@ -23,13 +23,14 @@ def _screen(args):
     params = config.default_params() if args.region == "statewide" else config.load_region(args.region).params
     out = paths.scope_dir(sc) / "refs"
     with Step("refs.screen", out_dir=out, params=params.section("refs.screen"), unit=sc) as step:
-        patches = scope.gather_cells(sc, "patches", step).to_pandas()
-        patches = patches.assign(x=0.0, y=0.0)
-        if len(patches):
-            import geopandas as gpd
+        import geopandas as gpd
 
-            g = gpd.GeoSeries.from_wkb(patches["geometry"]).centroid
-            patches["x"], patches["y"] = g.x.to_numpy(), g.y.to_numpy()
+        t = scope.gather_cells(sc, "patches", step).to_pandas()
+        patches = gpd.GeoDataFrame(
+            t.drop(columns="geometry"), geometry=gpd.GeoSeries.from_wkb(t["geometry"]), crs=crs.PROJECT_CRS
+        )
+        c = patches.geometry.centroid
+        patches["x"], patches["y"] = c.x.to_numpy(), c.y.to_numpy()
         obs = scope.gather_cells(sc, "obs", step).to_pandas()
         t = screen.screen(patches, obs, params.section("refs.screen"))
         step.output(io.write_table(t, out / "screen.parquet", "screen"), "screen")

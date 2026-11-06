@@ -110,7 +110,8 @@ refs:
     sys_sd_m: 0.015               # floor of the patch-to-patch scatter, and weight floor
     cell_gross_m: 0.30            # cell median this far from the scope median = real change; old: fit_field.GROSS_TILE
     water_buffer_m: 100.0         # patches closer to OSM water are screened out: banks move; old: fit_field.WATER_BUF
-    water_search_m: 500.0         # distance to water is recorded up to this far
+    water_kinds: [water_body, river, stream]   # not drain or canal: in farm counties they run along most roads
+    water_search_m: 500.0         # distance to any water is recorded on patches up to this far (information)
     use_cdl: true                 # exclude cropland patches (not implemented in the old code; not applied yet)
   obs:                            # old: patch_scan.py, measure_patches.py
     classes: [2, 12]              # 2011 classes measured on hard ground (class-12 overlap points included)

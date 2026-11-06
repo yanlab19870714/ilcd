@@ -4,8 +4,9 @@ change_suspect (old measure_patches.flag_change): a patch whose pooled 2011 offs
 of patches within refs.screen.near_m by more than max(flag_min_m, flag_k sqrt(se^2 + scatter^2)), where scatter is
 the NMAD of all departures (floored at sys_sd_m), so noisier surfaces get a wider tolerance.
 
-water (old fit_field.WATER_BUF): patches within refs.screen.water_buffer_m of OSM water; banks and floodplain
-edges really change. They are left out of the neighbour test as well.
+water (old fit_field.WATER_BUF): patches within refs.screen.water_buffer_m of OSM rivers, streams and water bodies
+(refs.screen.water_kinds); banks and floodplain edges really change. Drains and canals do not count: in farm
+counties they run along most roads. These patches are left out of the neighbour test as well.
 
 Sloped natural ground is tested among sloped ground only, since its offsets include slope x horizontal shift.
 
@@ -64,8 +65,28 @@ def gross_cells(obs: pd.DataFrame, flagged: set, p: dict) -> pd.DataFrame:
     return pd.DataFrame({"patch_id": hit["patch_id"].to_numpy(), "deviation_m": bad.reindex(hit["cell"]).to_numpy()})
 
 
+def near_water(patches, p: dict) -> np.ndarray:
+    """Patches (GeoDataFrame, EPSG:6345) within refs.screen.water_buffer_m of OSM water of refs.screen.water_kinds:
+    rivers, streams and water bodies, whose banks move; drains and canals are left alone."""
+    from ..data_src import osm
+
+    if patches.empty:
+        return np.zeros(0, bool)
+    xmin, ymin, xmax, ymax = patches.total_bounds
+    b = p["water_buffer_m"]
+    water = osm.layer("water", (xmin - b, ymin - b, xmax + b, ymax + b))
+    water = water[water["kind"].isin(p["water_kinds"])]
+    if water.empty:
+        return np.zeros(len(patches), bool)
+    hit = patches.sindex.query(water.geometry.buffer(b), predicate="intersects")[1]
+    out = np.zeros(len(patches), bool)
+    out[np.unique(hit)] = True
+    return out
+
+
 def screen(patches: pd.DataFrame, obs: pd.DataFrame, p: dict) -> pa.Table:
-    near = patches["dist_water_m"].notna() & (patches["dist_water_m"] < p["water_buffer_m"])
+    """patches: GeoDataFrame with patch_id, kind, legacy_dz_m, legacy_se_m, n_legacy, x, y (centroid)."""
+    near = near_water(patches, p)
     wt = pd.DataFrame({"patch_id": patches.loc[near, "patch_id"].to_numpy(), "deviation_m": np.nan, "reason": "water"})
     patches = patches[~near]
     # sloped ground carries the horizontal-shift signal (slope x shift), so it is compared only with sloped ground,
