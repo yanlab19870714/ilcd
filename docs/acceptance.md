@@ -143,6 +143,12 @@ three options:
 - a stronger stage-2 smoothness;
 - reporting it as the method's spatial resolution limit.
 
+**Decided (2026-11-06, Da Yan): report it as the method's spatial resolution limit.** The method is unchanged. The
+paper states that changes up to a few hundred metres are kept (at most about 1% absorbed at 200 m, 3-8% at 500 m),
+while a uniform change of about 1 km is underestimated by about 15% (13-17% in Carroll and Monroe). The target
+changes (bank erosion and deposition) are far smaller than that. The injection test stays in eval, so the limit is
+measured for every scope.
+
 ## Refactor step 3: Monroe, region `monroe` (2026-11-06)
 
 Run: the chunked Snakemake workflow, `upper` target, 201 steps (controller job 8846815). 695 legacy files
@@ -219,5 +225,4 @@ Injection, median absorbed share at 500 m / 1000 m:
 
 Decision: `align.stage2.fit_kinds` stays `[road]`. The product is change detection, and the extra kinds buy at
 most 0.41 cm on roads in Carroll and 0.04 cm in Monroe, where flat natural ground even makes roads worse, for half
-again as much absorbed change at 1 km. This is one more option
-for the injection open issue above. Runs: `runs/2026-10-23_monroe_full/paired/` (s2fix_*, s2road_*, inj_*).
+again as much absorbed change at 1 km. (The injection issue above is decided: the limit is reported.) Runs: `runs/2026-10-23_monroe_full/paired/` (s2fix_*, s2road_*, inj_*).
