@@ -81,3 +81,59 @@ ilcd's observations do no worse at every stage, so the check passes.
   8.6 cm with the shift and 28.3 cm without it. So the shift is real. The exploration's Carroll model was vertical
   only and left this error in place; slopes under that line would have shown false change.
 - **Block terms.** Along-track trend −0.09 cm/km; scan-angle slope of the shift 0.3 cm per degree.
+
+## Refactor step 2, flat natural ground and CDL (2026-11-06)
+
+New:
+- flat natural ground (natural_flat, also under canopy);
+- USDA CDL cropland mask;
+- change screening within each surface family.
+
+### CDL ablation (Carroll, same observations, OSM roads as a fixed test set)
+
+Excluding cropland "hard ground" and flat ground removed a third of the observations and made the correction worse
+on roads. The test set is the same in both runs, since CDL never removes roads:
+
+| Stage | Cropland excluded | Cropland kept |
+|---|---|---|
+| stage 1 | 4.50 cm | 4.14 cm |
+| stage 2 | 3.91 cm | 3.87 cm |
+
+Flat natural ground in the stage-1 fit made no difference (4.16 vs 4.18 cm on narrow patches).
+
+Decision: no surface kind is excluded on cropland by default (`refs.screen.cdl_kinds: []`). The change screen
+already drops patches that depart from their neighbours, which catches tilled fields. CDL stays available, and is
+needed later by change detection, where tillage produces false change.
+
+Ablation runs:
+- `ilcd_ablation_nocdl/` (separate data root, cells only);
+- `runs/2026-11-05_carroll_baseline31/paired/cv_variants*.out`.
+
+### Carroll with the final defaults (same metric as above: 1 km cells)
+
+| Stage | Exploration observations | ilcd, first version | ilcd, final defaults | sloped-ground NMAD (final) |
+|---|---|---|---|---|
+| line offsets | 4.53 cm | 4.34 cm | 4.39 cm | 9.26 cm |
+| stage 1 | 4.11 cm | 3.87 cm | 3.90 cm | 8.89 cm |
+| stage 1 + horizontal shift | — | 3.86 cm | 3.87 cm | 8.37 cm |
+| stage 2 | 3.93 cm | 3.71 cm | 3.76 cm | 8.26 cm |
+
+The check passes: no worse than the exploration at any stage. The small rise from the first version comes from a
+larger test set (47,620 segments, now including narrow patches on farmland).
+
+Observations: 318,386 used; 116,349 were screened out (water, change suspects).
+
+Injection, median absorbed share:
+
+| Radius | expl. stage 1 | expl. stage 2 | ilcd stage 1 | ilcd stage 2 |
+|---|---|---|---|---|
+| 200 m | 0.5% | 0.7% | 0.8% | 1.1% |
+| 500 m | 2.0% | 4.2% | 4.4% | 7.7% |
+| 1000 m | 4.6% | 12.1% | 10.7% | 17.3% |
+
+**Open issue.** The denser observations make 1 km changes easier to absorb: the line offsets follow a change that
+covers many observations of one line. Changes of 200 m or less are unaffected. Before the paper, decide between
+three options:
+- thinning observations per line and area;
+- a stronger stage-2 smoothness;
+- reporting it as the method's spatial resolution limit.

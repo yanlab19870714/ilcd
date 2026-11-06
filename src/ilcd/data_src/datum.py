@@ -77,7 +77,8 @@ def shift_search(lx, ly, lz, surface, p) -> dict:
     }
 
 
-def test_cell(cell: str, params) -> dict:
+def test_cell(cell: str, params) -> dict | None:
+    """One sample; None when the cell has too little 3DEP ground to compare (lake, quarry pit, outside 3DEP)."""
     p = params.section("data_src.datum")
     files = points.legacy_files_for(cell, params)
     for f in files:
@@ -85,6 +86,9 @@ def test_cell(cell: str, params) -> dict:
     fetch.fetch_modern_step(cell, params)
     m = points.read_modern(cell, params)
     g = m["cls"] == 2
+    if g.sum() < p["min_modern_ground"]:
+        log.info("datum sample %s skipped: %d 3DEP ground points", cell, int(g.sum()))
+        return None
     xmin, ymin, xmax, ymax = grid.cell_bounds(cell)
     pad = params["data_src.points.read_pad_m"]
     G = Grid.covering(xmin - pad, ymin - pad, xmax + pad, ymax + pad, 1.0)
@@ -151,8 +155,14 @@ def test_delivery(delivery: str, params) -> dict:
         samples = []
         for k in range(labels.max() + 1):
             members = [cells[i] for i in rng.permutation(np.flatnonzero(labels == k))]
-            for cell in members[:MAX_TRIES]:
+            tried = 0
+            for cell in members:
+                if tried == MAX_TRIES:
+                    break
                 s = test_cell(cell, params)
+                if s is None:  # no 3DEP ground here: does not count as a try
+                    continue
+                tried += 1
                 samples.append(s)
                 if s["informative"]:
                     break

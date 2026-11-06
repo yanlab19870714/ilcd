@@ -22,6 +22,7 @@ data_src:
     fine_step_m: 0.1
     fine_span_m: 0.6
     max_points: 250000            # 2011 ground points sampled per cell
+    min_modern_ground: 100000     # cells with fewer 3DEP ground points (lakes, pits) are skipped as samples
     probe_m: 1.0                  # a sample counts when, under both hypotheses, moving this far from the best shift
     min_sharpness: 0.02           # in x or y raises NMAD by at least this share. PROVISIONAL (flat cells fail)
     itrf_epoch: 2011.5            # old: pair_diagnostics.transform_2011

@@ -144,7 +144,7 @@ def fetch_modern(cell: str, batch: str, params) -> Path | None:
                 ]
             )
         )
-        n = pipe.execute()
+        n = _execute_with_retry(pipe, f"{batch} {cell}")
         if n == 0:
             raise _Empty()
     log.info("cell %s batch %s: %d points", cell, batch, n)
@@ -153,6 +153,22 @@ def fetch_modern(cell: str, batch: str, params) -> Path | None:
 
 class _Empty(Exception):
     pass
+
+
+def _execute_with_retry(pipe, what: str, tries: int = 4) -> int:
+    """PDAL execute; EPT tiles on S3 sometimes fail to read under load ("Could not read from"), so retry with
+    backoff. Other errors are raised at once."""
+    import time
+
+    for i in range(tries):
+        try:
+            return pipe.execute()
+        except RuntimeError as e:
+            if "Could not read" not in str(e) or i == tries - 1:
+                raise
+            log.warning("EPT read failed for %s (%s); retry %d", what, str(e)[:120], i + 1)
+            time.sleep(20 * 2**i)
+    raise AssertionError("unreachable")
 
 
 def fetch_modern_step(cell: str, params) -> list[Path]:
