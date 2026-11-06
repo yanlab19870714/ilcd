@@ -7,6 +7,8 @@ the NMAD of all departures (floored at sys_sd_m), so noisier surfaces get a wide
 water (old fit_field.WATER_BUF): patches within refs.screen.water_buffer_m of OSM water; banks and floodplain
 edges really change. They are left out of the neighbour test as well.
 
+Sloped natural ground is tested among sloped ground only, since its offsets include slope x horizontal shift.
+
 gross_cell (old fit_field.load): every patch of a cell whose median observation (of unflagged patches) is more than
 refs.screen.cell_gross_m from the scope median; alignment errors are centimetres, so this is real change.
 """
@@ -66,8 +68,13 @@ def screen(patches: pd.DataFrame, obs: pd.DataFrame, p: dict) -> pa.Table:
     near = patches["dist_water_m"].notna() & (patches["dist_water_m"] < p["water_buffer_m"])
     wt = pd.DataFrame({"patch_id": patches.loc[near, "patch_id"].to_numpy(), "deviation_m": np.nan, "reason": "water"})
     patches = patches[~near]
-    cs = change_suspects(patches, p).assign(reason="change_suspect")
-    gc = gross_cells(obs, set(cs["patch_id"]) | set(wt["patch_id"]), p).assign(reason="gross_cell")
+    # sloped ground carries the horizontal-shift signal (slope x shift), so it is compared only with sloped ground,
+    # and the cell-level test uses hard ground only
+    slope = patches["kind"] == "natural_slope"
+    cs = pd.concat([change_suspects(patches[~slope], p), change_suspects(patches[slope], p)], ignore_index=True)
+    cs = cs.assign(reason="change_suspect")
+    hard_obs = obs[obs["patch_id"].map(lambda s: ids.parse_patch(s)[1]) != "natural_slope"]
+    gc = gross_cells(hard_obs, set(cs["patch_id"]) | set(wt["patch_id"]), p).assign(reason="gross_cell")
     gc = gc[~gc["patch_id"].isin(cs["patch_id"])]
     gc = gc[~gc["patch_id"].isin(wt["patch_id"])]
     out = pd.concat([wt, cs, gc], ignore_index=True)[["patch_id", "reason", "deviation_m"]]

@@ -4,7 +4,8 @@ Folds are spatial units (eval.cv.fold_unit: cell (default), patch, or file): rep
 fixed seed; each fold refits the method on the other folds and predicts the held-out rows. Cell folds keep every
 patch on one side (a patch lies in one cell); file folds do not, since a patch crossing a file boundary is observed
 by passes of both files. The score is the exploration's "segment RMS" (fit_tradeoff.cv): residuals of held-out
-narrow (road-like) patches, median per (eval.cv.segment_unit, pass), RMS over segments.
+narrow (road-like) hard-ground patches, median per (eval.cv.segment_unit, pass), RMS over segments. With sloped
+ground present, the NMAD of its held-out residuals is reported too (the exploration's hshift CV metric).
 Scan-angle knot ranges come from all rows, so folds share the spline support.
 """
 
@@ -42,21 +43,30 @@ def run(d: pd.DataFrame, stages: dict, p: dict) -> list[dict]:
     unit = fold_units(d, p["fold_unit"])
     seg_unit = fold_units(d, p["segment_unit"])
     rng = np.random.default_rng(0)
-    acc = {s: {"seg": [], "nar": []} for s in stages}
+    acc = {s: {"seg": [], "nar": [], "slope": []} for s in stages}
     for _ in range(p["repeats"]):
         f = pd.Series(unit).map(folds(unit, p["folds"], rng)).to_numpy()
         for k in range(p["folds"]):
             tr, te = d[f != k], d[f == k]
             if tr.empty or te.empty:
                 continue
-            nar = te["narrow"].to_numpy(bool)
+            nar = (
+                te["narrow"].to_numpy(bool) & (te["kind"] != "natural_slope").to_numpy()
+                if "kind" in te
+                else (te["narrow"].to_numpy(bool))
+            )
+            slope = (te["kind"] == "natural_slope").to_numpy() if "kind" in te else np.zeros(len(te), bool)
             seg_key = (pd.Series(seg_unit[f == k][nar]) + "|" + te.loc[nar, "pass_id"].to_numpy()).to_numpy()
             for s, fit in stages.items():
                 r = te["dz_m"].to_numpy() - fit(tr).predict(te)
                 acc[s]["nar"].append(r[nar])
+                acc[s]["slope"].append(r[slope])
                 acc[s]["seg"].append(pd.Series(r[nar]).groupby(seg_key).median().to_numpy())
     out = []
     for s, a in acc.items():
-        seg, nar = np.concatenate(a["seg"]), np.concatenate(a["nar"])
-        out.append({"name": s, "rms_m": float(np.sqrt(np.mean(seg**2))), "nmad_m": nmad(nar), "n": int(seg.size)})
+        seg, nar, sl = np.concatenate(a["seg"]), np.concatenate(a["nar"]), np.concatenate(a["slope"])
+        row = {"name": s, "rms_m": float(np.sqrt(np.mean(seg**2))), "nmad_m": nmad(nar), "n": int(seg.size)}
+        if sl.size:
+            row["slope_nmad_m"] = nmad(sl)
+        out.append(row)
     return out

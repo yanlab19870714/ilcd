@@ -35,8 +35,10 @@ def rows(d, kinds) -> np.ndarray:
     return np.ones(len(d), bool) if "all" in kinds else d["kind"].isin(kinds).to_numpy()
 
 
-def fit(d, params: dict, terms=stage1.TERMS_S1, ranges=None, with_stage2: bool = True) -> Model:
+def fit(d, params: dict, terms=stage1.TERMS_S1H, ranges=None, with_stage2: bool = True) -> Model:
     m1 = rows(d, params["stage1"]["fit_kinds"])
+    if "line_hshift" in terms:  # sloped ground carries the horizontal-shift signal
+        m1 |= (d["kind"] == "natural_slope").to_numpy()
     s1 = stage1.fit(d[m1], params["stage1"], terms=terms, ranges=ranges)
     if not with_stage2:
         return Model(s1)
@@ -53,8 +55,10 @@ def to_model(model: Model, d, sc: str, lines, passes, members, params_sha256: st
     doc_lines = {}
     for lid, dz0 in m.lines.items():
         r = L.loc[lid]
+        hs = m.hshift.get(lid)
         doc_lines[lid] = {
             "dz0_m": dz0,
+            **({"left_m": hs[0], "fwd_m": hs[1], "hshift_pooled": hs[2]} if hs else {}),
             "x0_m": float(r["x0_m"]),
             "y0_m": float(r["y0_m"]),
             "heading_deg": float(r["heading_deg"]),
@@ -66,6 +70,8 @@ def to_model(model: Model, d, sc: str, lines, passes, members, params_sha256: st
         e = {"along_origin_km": {ax: v for (bb, ax), v in origin.items() if bb == b}}
         if b in m.trend:
             e["trend_m_per_km"] = m.trend[b]
+        if b in m.hscan:
+            e["hshift_scan_m_per_deg"] = {"left": m.hscan[b][0], "forward": m.hscan[b][1]}
         if b in m.spline:
             lo, hi, k, coef = m.spline[b]
             e["scan_spline"] = {

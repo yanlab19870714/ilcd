@@ -9,7 +9,9 @@ with the 3DEP window plane of its 1 m cell; points farther than refs.obs.outlier
 are dropped; each (patch, pass) with at least refs.obs.min_points points gives one observation (median, standard
 error 1.2533 max(NMAD, 1 cm) / sqrt(n)). Two passes on one patch give an overlap observation.
 
-Roofs, natural ground and sloped ground (horizontal shift) are added in later steps.
+Sloped natural ground (refs.slope) gives the observations of the horizontal-shift term: its residual to the plane
+moves by slope x shift, so only gross errors (refs.slope.max_dz_m) are dropped there. Roofs and flat natural ground
+are added in later steps.
 """
 
 import numpy as np
@@ -67,6 +69,27 @@ def hard_ground(G: Grid, m: dict, ndvi: np.ndarray, interior: np.ndarray, p: dic
     out = np.zeros_like(lab)
     out[np.isin(lab, big)] = np.searchsorted(big, lab[np.isin(lab, big)]) + 1
     return out, P, dtm_at
+
+
+def slope_patches(G: Grid, P: dict, taken: np.ndarray, interior: np.ndarray, p: dict) -> np.ndarray:
+    """Sloped natural ground for the horizontal-shift term: 1 m cells whose 3DEP ground window plane is steep
+    (refs.slope min..max_slope_deg) and planar (rms below max_rms_m), not already hard ground; 4-connected regions
+    of at least min_area_m2. Vegetation does not matter: only ground returns are used. Labels 1..K."""
+    with np.errstate(invalid="ignore"):
+        ok = (
+            (P["n"] >= p["min_points"])
+            & (P["slope"] >= p["min_slope_deg"])
+            & (P["slope"] <= p["max_slope_deg"])
+            & (P["rms"] < p["max_rms_m"])
+        )
+    ok &= ~taken & interior
+    lab, n = ndimage.label(ok)
+    sizes = np.bincount(lab.ravel(), minlength=n + 1)
+    big = np.flatnonzero(sizes >= p["min_area_m2"] / G.res**2)
+    big = big[big > 0]
+    out = np.zeros_like(lab)
+    out[np.isin(lab, big)] = np.searchsorted(big, lab[np.isin(lab, big)]) + 1
+    return out
 
 
 def _narrow(lab: np.ndarray, k: int, res: float, p: dict) -> np.ndarray:
@@ -159,9 +182,12 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
     XC, YC = np.meshgrid(xc, yc)
     interior = (XC >= xmin) & (XC < xmax) & (YC >= ymin) & (YC < ymax)
     lab, P, _ = hard_ground(G, m, _ndvi_on(G, cell, pg["ndvi_year"]), interior, pg)
+    k_hard = int(lab.max())
+    sl = slope_patches(G, P, lab > 0, interior, params.section("refs.slope"))
+    lab = np.where(sl > 0, sl + k_hard, lab)  # labels 1..k_hard hard ground, k_hard+1..k sloped ground
     k = int(lab.max())
     if k == 0:
-        return *empties, "no hard ground"
+        return *empties, "no hard or sloped ground"
 
     # 2011 points on patches, residual to the 3DEP window plane
     leg = points.read_legacy(cell, params)
@@ -173,8 +199,11 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
     sel = np.isin(leg["cls"], po["classes"]) & (pid > 0)
     r = plane_residual(G, P, leg["x"][sel], leg["y"][sel], leg["z"][sel])
     ok = np.isfinite(r)
-    if ok.any():
-        ok &= np.abs(r - np.median(r[ok])) < po["outlier_m"]
+    hard = pid[sel] <= k_hard
+    if (ok & hard).any():  # hard ground: points far from the cell's median residual are not ground
+        ok &= ~hard | (np.abs(r - np.median(r[ok & hard])) < po["outlier_m"])
+    # sloped ground: a horizontal shift moves the residual by slope x shift, so only gross errors are dropped
+    ok &= hard | (np.abs(r) < params["refs.slope.max_dz_m"])
     idx = np.flatnonzero(sel)[ok]
     r = r[ok]
     pas = assign_passes(leg["part"][idx], leg["t"][idx], files, passes)
@@ -212,7 +241,10 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
         parts = m["part"][gl == q]
         batch_of[q] = m["parts"][int(np.bincount(parts).argmax())] if parts.size else m["parts"][0]
     road = _road_share(lab, G, k, pg)
-    kind = {q: "road" if road[q] >= pg["road_share"] else "hard_other" for q in range(1, k + 1)}
+    kind = {
+        q: "natural_slope" if q > k_hard else "road" if road[q] >= pg["road_share"] else "hard_other"
+        for q in range(1, k + 1)
+    }
     pid_of = {q: ids.patch_id(cell, kind[q], q) for q in range(1, k + 1)}
     dist_water = _water_distance(polys, cell, params["refs.screen.water_search_m"])
     pooled = D.groupby("patch")["r"].agg(["median", "size", lambda v: nmad(v)])
@@ -224,7 +256,7 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
             {
                 "patch_id": pid_of[q],
                 "kind": kind[q],
-                "source": "ndvi",
+                "source": "geometry" if q > k_hard else "ndvi",
                 "modern_batch": batch_of[q],
                 "area_m2": float(area[q]),
                 "slope_deg": float(slope[q]),

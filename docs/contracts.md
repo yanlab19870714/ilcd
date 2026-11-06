@@ -485,14 +485,12 @@ Path: `{scope}/align/model/model.json`
       "description": "Vertical offset of the line (2011 minus 3DEP); lines unseen in fitting use the model's median_offset_m"
      },
      "fwd_m": {
-      "type": "number"
+      "type": "number",
+      "description": "Horizontal shift along the flight direction"
      },
      "left_m": {
-      "type": "number"
-     },
-     "hshift_pooled": {
-      "type": "boolean",
-      "description": "true when the line had too few sloped points and uses its block's mean shift"
+      "type": "number",
+      "description": "Horizontal shift of the line to its left (sensor frame); 2011 point = true position + shift"
      },
      "x0_m": {
       "type": "number"
@@ -505,6 +503,10 @@ Path: `{scope}/align/model/model.json`
      },
      "block_id": {
       "type": "string"
+     },
+     "hshift_pooled": {
+      "type": "boolean",
+      "description": "true when the line had fewer than align.stage1.hshift_min_obs sloped-ground observations and uses its block's shift"
      }
     }
    }
@@ -563,6 +565,23 @@ Path: `{scope}/align/model/model.json`
         "ew"
        ]
       }
+     },
+     "hshift_scan_m_per_deg": {
+      "type": "object",
+      "required": [
+       "left",
+       "forward"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "left": {
+        "type": "number"
+       },
+       "forward": {
+        "type": "number"
+       }
+      },
+      "description": "Change of the horizontal shift per degree of scan angle (sensor frame)"
      }
     }
    }
@@ -792,6 +811,10 @@ Path: `{scope}/eval/cv.json`
      },
      "n": {
       "type": "integer"
+     },
+     "slope_nmad_m": {
+      "type": "number",
+      "description": "NMAD of held-out sloped-ground residuals"
      }
     }
    }

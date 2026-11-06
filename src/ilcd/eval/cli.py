@@ -40,7 +40,8 @@ def _stages(method, stage1, pa_, ranges) -> dict:
     return {
         "line_offset": lambda tr: method.fit(tr, pa_, terms=stage1.TERMS_M3, ranges=ranges, with_stage2=False),
         "stage1": lambda tr: method.fit(tr, pa_, terms=stage1.TERMS_S1, ranges=ranges, with_stage2=False),
-        "stage2": lambda tr: method.fit(tr, pa_, terms=stage1.TERMS_S1, ranges=ranges),
+        "stage1_hshift": lambda tr: method.fit(tr, pa_, terms=stage1.TERMS_S1H, ranges=ranges, with_stage2=False),
+        "stage2": lambda tr: method.fit(tr, pa_, terms=stage1.TERMS_S1H, ranges=ranges),
     }
 
 

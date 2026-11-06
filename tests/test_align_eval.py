@@ -69,6 +69,41 @@ def test_modern_batch_offset(params):
     assert one.modern == {}
 
 
+def test_horizontal_shift_recovered_and_pooled(params):
+    rng = np.random.default_rng(5)
+    n = 8000
+    lines = np.array(["abs@0.0", "abs@1.0", "abs@2.0"])
+    li = rng.choice(3, n, p=[0.45, 0.45, 0.10])
+    d = pd.DataFrame(
+        {
+            "line_id": lines[li],
+            "block_id": "abs@0#B",
+            "along_km": 0.0,
+            "scan_deg": rng.uniform(-15, 15, n),
+            "heading_deg": np.where(li == 1, 270.0, 90.0),
+            "kind": "natural_slope",
+            "gx": rng.normal(0, 0.3, n),
+            "gy": rng.normal(0, 0.3, n),
+            "w": 1.0,
+        }
+    )
+    d.loc[: n // 2, "kind"] = "hard_other"
+    d.loc[: n // 2, ["gx", "gy"]] = 0.0
+    true = {"abs@0.0": (0.5, -0.3), "abs@1.0": (-0.2, 0.4), "abs@2.0": (0.0, 0.0)}
+    cl, cf = stage1.hshift_columns(d)
+    left = d["line_id"].map(lambda x: true[x][0]).to_numpy()
+    fwd = d["line_id"].map(lambda x: true[x][1]).to_numpy()
+    d["dz_m"] = 0.1 + cl * left + cf * fwd + rng.normal(0, 0.01, n)
+    p = dict(params["align.stage1"], hshift_min_obs=500)  # line abs@2.0 has ~400 sloped obs: pooled
+    m = stage1.fit(d, p, terms=("line_offset", "line_hshift"))
+    for lid in ("abs@0.0", "abs@1.0"):
+        assert m.hshift[lid][0] == pytest.approx(true[lid][0], abs=0.02)
+        assert m.hshift[lid][1] == pytest.approx(true[lid][1], abs=0.02)
+        assert m.hshift[lid][2] is False
+    assert m.hshift["abs@2.0"][2] is True
+    assert np.std(d["dz_m"] - m.predict(d)) < 0.012
+
+
 def test_unseen_line_uses_median_offset(params):
     d, *_ = _synthetic(np.random.default_rng(1))
     m = stage1.fit(d[d["line_id"] != "abs@5.0"], params["align.stage1"], terms=stage1.TERMS_M3)

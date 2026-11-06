@@ -95,8 +95,12 @@ refs:
     max_rough_m: 0.05
     min_area_m2: 100.0
   slope:                          # sloped natural ground for the horizontal-shift term; old: hshift_fit
-    min_slope_deg: 10.0
-    max_dz_m: 3.0
+    min_slope_deg: 10.0           # old MIN_SLOPE
+    max_slope_deg: 40.0           # PROVISIONAL: steeper cells are rarely planar at 3 m
+    max_rms_m: 0.15               # PROVISIONAL: window-plane rms; old used every steep ground point
+    min_points: 12
+    min_area_m2: 20.0
+    max_dz_m: 3.0                 # gross-error limit of a residual; old MAX_DZ
   screen:                         # per scope, across cells; old: measure_patches.flag_change, fit_field.load
     near_m: 200.0                 # neighbours of a patch for the change test
     min_neighbours: 5
@@ -119,10 +123,12 @@ align:
     scan_knots: 8                 # cubic B-spline knots in scan angle, per block; old: fit_scan S_8
     scan_range_pct: [0.5, 99.5]   # knots span these percentiles of the block's scan angles
     ridge: 0.001                  # on the spline, removes the constant it shares with the line offsets
-    fit_kinds: [all]              # patch kinds stage 1 is fitted on ([all] = every kind); old: final_fit
+    fit_kinds: [road, hard_other, roof_flat, natural_flat]  # vertical terms; sloped ground joins when the
+                                  # horizontal shift is fitted (line_hshift); [all] = every kind
     modern_reference_batch: auto  # 3DEP batch fixed at offset 0 (auto = the one with most observations)
     trend: block                  # one along-track trend per block (per-line trends overfit)
-    hshift_min_points: 1000       # fewer sloped points -> the line uses its block's mean shift (v3d)
+    hshift_min_obs: 30            # PROVISIONAL: fewer sloped-ground observations -> the line uses its block's shift
+                                  # (the exploration's v3d pooled lines with < 1000 steep points)
   stage2:
     spacing_m: 1000.0             # B-spline knot spacing of the per-line field; old: final_fit h_km=1
     lam: 1000.0                   # smoothness weight; old: final_fit default
