@@ -75,8 +75,9 @@ def test_m3c2_and_objects(params):
     core = m3c2.thin(mod, 1.0)
     t = m3c2.run(leg, mod, core, 0.03, params.section("change.m3c2"))
     contracts.get("m3c2").check_table(io.to_arrow(t, "m3c2"))
-    obj, mem = objects.find(t.assign(cell_id="E0000N0000"), "s", 1.0, [LineString([(0, 0), (0, 100)])],
-                            params.section("change.objects"))
+    obj, mem = objects.find(
+        t.assign(cell_id="E0000N0000"), "s", 1.0, [LineString([(0, 0), (0, 100)])], params.section("change.objects")
+    )
     assert len(obj) == 1 and obj.loc[0, "kind"] == "loss"
     assert obj.loc[0, "area_m2"] == pytest.approx(400, rel=0.15)
     assert obj.loc[0, "mean_dz_m"] == pytest.approx(-0.8, abs=0.1)

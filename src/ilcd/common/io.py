@@ -28,15 +28,24 @@ def sha256_file(path, chunk: int = 1 << 20) -> str:
     return h.hexdigest()
 
 
+def _umask() -> int:
+    m = os.umask(0)
+    os.umask(m)
+    return m
+
+
 @contextmanager
 def atomic_path(path):
-    """Yield a temporary path next to `path`; rename it onto `path` only if the block succeeds."""
+    """Yield a temporary path next to `path`; rename it onto `path` only if the block succeeds. The file gets the
+    permissions of a normally created file (mkstemp makes it 0600, which hides it from the group sharing the store)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
     os.close(fd)
     try:
         yield Path(tmp)
+        if os.path.exists(tmp):  # the block may have replaced it (writers that create the file themselves)
+            os.chmod(tmp, 0o666 & ~_umask())
         os.replace(tmp, path)
     finally:
         if os.path.exists(tmp):

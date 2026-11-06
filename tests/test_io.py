@@ -91,3 +91,27 @@ def test_json_write_validates(tmp_path):
     with pytest.raises(ValueError):  # NaN is not JSON
         io.write_json({**doc, "stages": [{**doc["stages"][0], "rms_m": float("nan")}]}, tmp_path / "cv3.json", "cv")
     assert json.loads(p.read_text())["n_folds"] == 5
+
+
+def test_written_files_follow_the_umask(tmp_path):
+    import os
+    import stat
+
+    old = os.umask(0o002)
+    try:
+        p = io.write_json(
+            {
+                "scope": "region:x",
+                "method": "m",
+                "fold_unit": "cell",
+                "segment_unit": "cell",
+                "n_folds": 5,
+                "test_kinds": ["road"],
+                "stages": [],
+            },
+            tmp_path / "cv.json",
+            "cv",
+        )
+    finally:
+        os.umask(old)
+    assert stat.S_IMODE(p.stat().st_mode) == 0o664  # group-readable, as the shared store needs
