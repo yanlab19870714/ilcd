@@ -189,3 +189,45 @@ def redecide(delivery: str, params) -> dict:
         doc["decision"] = decide(doc["samples"], p)
         step.output(io.write_json(doc, path, "datum"), "datum")
     return doc
+
+
+def report(params, samples: bool = False):
+    """One row per delivery with a datum.json (or, with samples, one row per sample), for human review."""
+    import pandas as pd
+
+    p = params.section("data_src.datum")
+    rows = []
+    for path in sorted((paths.data_root() / "statewide" / "deliveries").glob("*/datum.json")):
+        doc = io.read_json(path, "datum")
+        good = [s for s in doc["samples"] if s["informative"]]
+        win = doc["decision"] if doc["decision"] != "ambiguous" else None
+        resid = [float(np.hypot(s[win]["dx_m"], s[win]["dy_m"])) for s in good] if win else []
+        if samples:
+            for s in doc["samples"]:
+                rows.append(
+                    {
+                        "delivery": doc["delivery_id"],
+                        "cell": s["cell_id"],
+                        "informative": s["informative"],
+                        "winner": s.get("winner"),
+                        "itrf_shift_m": round(float(np.hypot(s["itrf"]["dx_m"], s["itrf"]["dy_m"])), 2),
+                        "nad83_shift_m": round(float(np.hypot(s["nad83"]["dx_m"], s["nad83"]["dy_m"])), 2),
+                        "sharpness": min(s["itrf"]["sharpness"], s["nad83"]["sharpness"]),
+                    }
+                )
+            continue
+        rows.append(
+            {
+                "delivery": doc["delivery_id"],
+                "decision": doc["decision"],
+                "samples": len(doc["samples"]),
+                "informative": len(good),
+                "winner_max_shift_m": round(max(resid), 2) if resid else None,
+                "warning": "line-level shift?"
+                if resid and max(resid) > p["max_residual_m"]
+                else "needs manual override"
+                if doc["decision"] == "ambiguous"
+                else "",
+            }
+        )
+    return pd.DataFrame(rows)

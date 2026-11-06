@@ -79,6 +79,21 @@ def _fetch_ancillary(args):
             s.input(ancillary.fetch_ndvi(c, year), hash_file=True)
 
 
+def _datum_report(args):
+    from . import catalog, datum
+
+    params = config.default_params()
+    t = datum.report(params, samples=args.samples)
+    if not args.samples:
+        decided = set(t["delivery"]) if len(t) else set()
+        d = catalog.read_deliveries()
+        missing = sorted(set(d.index) - decided)
+        print(t.to_string(index=False) if len(t) else "no datum tests yet")
+        print(f"\n{len(decided)} deliveries tested, {len(missing)} not tested yet")
+    else:
+        print(t.to_string(index=False))
+
+
 def _datum(args):
     from . import datum
 
@@ -131,3 +146,6 @@ def register(sub):
     s.add_argument("delivery", nargs="+")
     s.add_argument("--redecide", action="store_true", help="re-apply the decision rule to the existing samples")
     s.set_defaults(fn=_datum)
+    s = p.add_parser("datum-report", help="summary of all datum tests, for review")
+    s.add_argument("--samples", action="store_true", help="one row per sample instead of per delivery")
+    s.set_defaults(fn=_datum_report)
