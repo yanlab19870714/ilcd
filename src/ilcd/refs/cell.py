@@ -12,7 +12,8 @@ error 1.2533 max(NMAD, 1 cm) / sqrt(n)). Two passes on one patch give an overlap
 Sloped natural ground (refs.slope) gives the observations of the horizontal-shift term: its residual to the plane
 moves by slope x shift, so only gross errors (refs.slope.max_dz_m) are dropped there. Roofs and flat natural ground
 are added later. Flat natural ground (refs.natural) covers forests and fields without hard ground; natural and
-hard-other patches cultivated in refs.screen.cdl_years (CDL) are kept but excluded, without observations.
+patches of refs.screen.cdl_kinds cultivated in refs.screen.cdl_years (CDL) are kept but excluded, without
+observations (no kind by default: see defaults.yaml).
 """
 
 import numpy as np
@@ -277,9 +278,7 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
         else "hard_other"
         for q in range(1, k + 1)
     }
-    cropland = {
-        q: kind[q] in ("hard_other", "natural_flat") and crop_share[q] >= ps["cdl_max_share"] for q in range(1, k + 1)
-    }
+    cropland = {q: kind[q] in ps["cdl_kinds"] and crop_share[q] >= ps["cdl_max_share"] for q in range(1, k + 1)}
     pid_of = {q: ids.patch_id(cell, kind[q], q) for q in range(1, k + 1)}
     dist_water = _water_distance(polys, cell, params["refs.screen.water_search_m"])
     pooled = D.groupby("patch")["r"].agg(["median", "size", lambda v: nmad(v)])

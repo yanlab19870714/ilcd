@@ -53,11 +53,20 @@ def _list(args):
         print(u)
 
 
+def _todo(ids, args, out_dir, step) -> list[str]:
+    """ids, minus those with a manifest when --skip-existing is given."""
+    if not getattr(args, "skip_existing", False):
+        return ids
+    from ..common.manifest import done
+
+    return [i for i in ids if not done(out_dir(i), step)]
+
+
 def _fetch_legacy(args):
     from . import fetch
 
     params = config.default_params()
-    for f in _ids(args):
+    for f in _todo(_ids(args), args, paths.file_dir, "data_src.fetch_legacy"):
         fetch.fetch_legacy_step(f, params)
 
 
@@ -65,7 +74,7 @@ def _fetch_modern(args):
     from . import fetch
 
     params = config.default_params()
-    for c in _ids(args):
+    for c in _todo(_ids(args), args, paths.cell_dir, "data_src.fetch_modern"):
         fetch.fetch_modern_step(c, params)
 
 
@@ -74,7 +83,7 @@ def _fetch_ancillary(args):
 
     params = config.default_params()
     year = params["refs.ground.ndvi_year"]
-    for c in _ids(args):
+    for c in _todo(_ids(args), args, paths.cell_dir, "data_src.fetch_ancillary"):
         with Step("data_src.fetch_ancillary", out_dir=paths.cell_dir(c), params={"ndvi_year": year}, unit=c) as s:
             s.input(ancillary.fetch_ndvi(c, year), hash_file=True)
 
@@ -161,6 +170,7 @@ def register(sub):
         s.add_argument("ids", nargs="*")
         s.add_argument("--from-file", help=f"file with one of {what} per line")
         s.add_argument("--chunk", help="k/n: every n-th line starting at line k (job arrays)")
+        s.add_argument("--skip-existing", action="store_true", help="skip units that already have a manifest")
         s.set_defaults(fn=fn)
     s = p.add_parser("datum", help="datum test of deliveries")
     s.add_argument("delivery", nargs="+")

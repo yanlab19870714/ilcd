@@ -1,41 +1,41 @@
 # Upper half of the pipeline for one region: data_src -> flightlines -> refs -> align -> eval.
-# Every rule's output is the manifest its `ilcd` command writes on success (docs/design.md section 10), so a missing
-# manifest means the step did not finish. Per-file and per-cell rules are grouped into batches of Slurm jobs with
-# --group-components (see config/profiles/example/config.yaml).
+#
+# Per-file and per-cell work runs in CHUNKS: the region's file and cell lists are split into config["chunks"]
+# (default 40) parts, and each chunk is one Slurm job that processes its units in turn with --skip-existing. One job
+# per unit was tried first: Slurm's queueing overhead made Monroe's 5,000 short steps take over a day (2026-11-05).
+# Snakemake job groups were also tried: a group's resources are summed over its members, so groups asked for
+# terabytes of memory and were rejected.
+#
+# Every unit still writes its own manifest; a chunk's marker only says the chunk finished. --skip-existing skips
+# units that have a manifest, so to recompute after a code or parameter change, delete those manifests (or run the
+# ilcd command without the flag).
 #
 # Statewide catalog files (legacy_headers, deliveries) are rewritten by region runs: run one region at a time.
 
 from ilcd.common import paths as P
 
 ROOT = str(P.data_root())
+N = int(config.get("chunks", 40))
+CHUNKS = range(1, N + 1)
 
 
 def _m(rel, step):
     return f"{ROOT}/{rel}/{step}.manifest.json"
 
 
-def selection(wc, unit, core=False):
-    """file_ids or cell_ids of the region, available once the select checkpoint has run."""
-    checkpoints.select.get(region=wc.region)
-    from ilcd.common import ids, scope
-
-    sc = ids.scope(wc.region)
-    return scope.files(sc) if unit == "file" else scope.cells(sc)
-
-
-def region_files(wc):
-    """The region's selected files plus every file its cells read (cells are shared; docs/design.md section 3)."""
-    from ilcd.common import config
-    from ilcd.data_src import regions
-
-    return sorted(set(selection(wc, "file")) | set(regions.files_touching(selection(wc, "cell"), config.default_params())))
+def _r(rel):
+    return f"{ROOT}/regions/{{region}}/{rel}"
 
 
 def region_deliveries(wc):
+    """Deliveries of every file the region's cells read (cells are shared; docs/design.md section 3)."""
+    checkpoints.select.get(region=wc.region)
     from ilcd.data_src import catalog
 
     lf = catalog.read_legacy_files().set_index("file_id")
-    return sorted(set(lf.loc[region_files(wc), "delivery_id"]))
+    with open(f"{ROOT}/regions/{wc.region}/lists/files.txt") as f:
+        files = [s.strip() for s in f if s.strip()]
+    return sorted(set(lf.loc[files, "delivery_id"]))
 
 
 rule catalog:
@@ -46,22 +46,27 @@ rule catalog:
 
 checkpoint select:
     input: rules.catalog.output
-    output: _m("regions/{region}/data_src", "data_src.select")
+    output:
+        _m("regions/{region}/data_src", "data_src.select"),
+        files=_r("lists/files.txt"),
+        cells=_r("lists/cells.txt"),
     resources: runtime=20, mem_mb=8000
-    shell: "ilcd data_src select {wildcards.region}"
+    shell:
+        "ilcd data_src select {wildcards.region} && "
+        "ilcd data_src list {wildcards.region} file > {output.files} && "
+        "ilcd data_src list {wildcards.region} cell > {output.cells}"
 
 
 rule fetch_legacy:
-    input: rules.catalog.output
-    output: _m("files/{file_id}", "data_src.fetch_legacy")
-    group: "fetch_file"
-    resources: runtime=10, mem_mb=8000
-    shell: "ilcd data_src fetch-legacy {wildcards.file_id}"
+    input: _r("lists/files.txt")
+    output: touch(_r("chunks/fetch_legacy.{k}.done"))
+    resources: runtime=180, mem_mb=8000
+    shell: "ilcd data_src fetch-legacy --from-file {input} --chunk {wildcards.k}/{N} --skip-existing"
 
 
 rule headers:
-    input: lambda wc: [_m(f"files/{f}", "data_src.fetch_legacy") for f in region_files(wc)]
-    output: touch(f"{ROOT}/regions/{{region}}/data_src/.headers.done")  # the manifest is in statewide/catalog
+    input: expand(_r("chunks/fetch_legacy.{k}.done"), k=CHUNKS, allow_missing=True)
+    output: touch(_r("data_src/.headers.done"))  # the manifest is in statewide/catalog
     resources: runtime=20, mem_mb=8000
     shell: "ilcd data_src headers"
 
@@ -75,95 +80,85 @@ rule datum:
 
 rule deliveries:
     input:
-        lambda wc: f"{ROOT}/regions/{wc.region}/data_src/.headers.done",
+        _r("data_src/.headers.done"),
         lambda wc: [_m(f"statewide/deliveries/{d}", "data_src.datum") for d in region_deliveries(wc)],
-    output: touch(f"{ROOT}/regions/{{region}}/data_src/.deliveries.done")
+    output: touch(_r("data_src/.deliveries.done"))
     resources: runtime=10, mem_mb=8000
     shell: "ilcd data_src deliveries"
 
 
-# Per-file steps after the datum decisions run inside a region run (--config region=...): they wait for that
-# region's deliveries table, which holds the datum and time domain of every delivery in the region.
-DELIVERIES_DONE = f"{ROOT}/regions/{REGION}/data_src/.deliveries.done" if REGION else []
-
-
 rule passes:
-    input: _m("files/{file_id}", "data_src.fetch_legacy"), DELIVERIES_DONE
-    output: _m("files/{file_id}", "flightlines.passes")
-    group: "passes_file"
-    resources: runtime=10, mem_mb=16000
-    shell: "ilcd flightlines passes {wildcards.file_id}"
+    input: _r("lists/files.txt"), _r("data_src/.deliveries.done")
+    output: touch(_r("chunks/passes.{k}.done"))
+    resources: runtime=180, mem_mb=16000
+    shell: "ilcd flightlines passes --from-file {input[0]} --chunk {wildcards.k}/{N} --skip-existing"
 
 
 rule link:
-    input:
-        lambda wc: f"{ROOT}/regions/{wc.region}/data_src/.deliveries.done",
-        lambda wc: [_m(f"files/{f}", "flightlines.passes") for f in selection(wc, "file")],
+    input: expand(_r("chunks/passes.{k}.done"), k=CHUNKS, allow_missing=True)
     output: _m("regions/{region}/flightlines", "flightlines.link")
     resources: runtime=30, mem_mb=16000
     shell: "ilcd flightlines link {wildcards.region}"
 
 
 rule fetch_modern:
-    input: rules.catalog.output
-    output: _m("cells/{cell_id}", "data_src.fetch_modern")
-    group: "fetch_cell"
-    resources: runtime=15, mem_mb=8000
-    shell: "ilcd data_src fetch-modern {wildcards.cell_id}"
+    input: _r("lists/cells.txt")
+    output: touch(_r("chunks/fetch_modern.{k}.done"))
+    resources: runtime=240, mem_mb=8000
+    shell: "ilcd data_src fetch-modern --from-file {input} --chunk {wildcards.k}/{N} --skip-existing"
 
 
 rule fetch_ancillary:
-    input: rules.catalog.output
-    output: _m("cells/{cell_id}", "data_src.fetch_ancillary")
-    group: "fetch_cell"
-    resources: runtime=10, mem_mb=4000
-    shell: "ilcd data_src fetch-ancillary {wildcards.cell_id}"
-
-
-def cell_files(wc):
-    from ilcd.common import config
-    from ilcd.data_src import points
-
-    return points.legacy_files_for(wc.cell_id, config.default_params())
+    input: _r("lists/cells.txt")
+    output: touch(_r("chunks/fetch_ancillary.{k}.done"))
+    resources: runtime=240, mem_mb=8000
+    shell: "ilcd data_src fetch-ancillary --from-file {input} --chunk {wildcards.k}/{N} --skip-existing"
 
 
 rule refs_cell:
+    # a cell reads the passes of every file overlapping it: wait for the region's link (all passes exist)
     input:
-        _m("cells/{cell_id}", "data_src.fetch_modern"),
-        _m("cells/{cell_id}", "data_src.fetch_ancillary"),
-        lambda wc: [_m(f"files/{f}", "flightlines.passes") for f in cell_files(wc)],
-    output: _m("cells/{cell_id}/refs", "refs.cell")
-    group: "refs_cell"
-    resources: runtime=20, mem_mb=24000
-    shell: "ilcd refs cell {wildcards.cell_id}"
+        cells=_r("lists/cells.txt"),
+        modern=_r("chunks/fetch_modern.{k}.done"),
+        ancillary=_r("chunks/fetch_ancillary.{k}.done"),
+        link=_m("regions/{region}/flightlines", "flightlines.link"),
+    output: touch(_r("chunks/refs.{k}.done"))
+    resources: runtime=360, mem_mb=32000, cpus_per_task=2
+    shell: "ilcd refs cell --from-file {input.cells} --chunk {wildcards.k}/{N} --skip-existing"
 
 
 rule screen:
-    input:
-        lambda wc: _m(f"regions/{wc.region}/flightlines", "flightlines.link"),
-        lambda wc: [_m(f"cells/{c}/refs", "refs.cell") for c in selection(wc, "cell")],
+    input: expand(_r("chunks/refs.{k}.done"), k=CHUNKS, allow_missing=True)
     output: _m("regions/{region}/refs", "refs.screen")
-    resources: runtime=30, mem_mb=16000
+    resources: runtime=60, mem_mb=32000
     shell: "ilcd refs screen {wildcards.region}"
 
 
 rule align_fit:
     input: _m("regions/{region}/refs", "refs.screen")
     output: _m("regions/{region}/align/model", "align.fit")
-    resources: runtime=60, mem_mb=32000
+    resources: runtime=60, mem_mb=64000
     shell: "ilcd align fit {wildcards.region}"
 
 
 rule eval_cv:
     input: _m("regions/{region}/refs", "refs.screen")
     output: _m("regions/{region}/eval", "eval.cv")
-    resources: runtime=120, mem_mb=32000
+    resources: runtime=360, mem_mb=96000, cpus_per_task=4
     shell: "ilcd eval cv {wildcards.region}"
 
 
+rule eval_injection:
+    input: _m("regions/{region}/refs", "refs.screen")
+    output: _m("regions/{region}/eval", "eval.injection")
+    resources: runtime=360, mem_mb=96000, cpus_per_task=4
+    shell: "ilcd eval injection {wildcards.region}"
+
+
 rule upper:
-    """Everything up to the correction model and its cross-validation."""
+    """Everything up to the correction model and its evaluation."""
     input:
         _m("regions/{region}/align/model", "align.fit"),
         _m("regions/{region}/eval", "eval.cv"),
+        _m("regions/{region}/eval", "eval.injection"),
     output: touch(f"{ROOT}/regions/{{region}}/.upper.done")

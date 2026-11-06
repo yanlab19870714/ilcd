@@ -54,20 +54,23 @@ def fetch_legacy(file_id: str) -> Path:
     return dest
 
 
-def header_facts(file_id: str, path: Path) -> dict:
+def header_facts(file_id: str, path: Path, params) -> dict:
     """One legacy_headers row: hash, counts, time type (bit checked against the range), scales."""
     las = laspy.read(path)
     t = np.asarray(las.gps_time)
     bit = las.header.global_encoding.gps_time_type == laspy.header.GpsTimeType.STANDARD
+    ttype, n_bad = gpstime.classify_points(bit, t, params["data_src.points.max_invalid_time_share"])
+    ok = gpstime.valid(bit, t)
     cls = np.asarray(las.classification)
     return {
         "file_id": file_id,
         "sha256": io.sha256_file(path),
         "n_points": int(len(las.points)),
         "point_format": int(las.header.point_format.id),
-        "gps_time_type": gpstime.classify(bit, float(t.min()), float(t.max())),
-        "gps_min_s": float(t.min()),
-        "gps_max_s": float(t.max()),
+        "gps_time_type": ttype,
+        "n_invalid_time": n_bad,
+        "gps_min_s": float(t[ok].min()),
+        "gps_max_s": float(t[ok].max()),
         "scale_xy": float(las.header.scales[0]),
         "scale_z": float(las.header.scales[2]),
         "n_psid": int(np.unique(np.asarray(las.point_source_id)).size),
@@ -82,7 +85,7 @@ def fetch_legacy_step(file_id: str, params) -> Path:
     out_dir = paths.file_dir(file_id)
     with Step("data_src.fetch_legacy", out_dir=out_dir, params={}, unit=file_id) as step:
         path = fetch_legacy(file_id)
-        facts = header_facts(file_id, path)
+        facts = header_facts(file_id, path, params)
         step.input(path, sha256=facts["sha256"])
         t = pa.Table.from_pylist([facts], schema=contracts.get("legacy_headers").arrow_schema())
         step.output(io.write_table(t, out_dir / "legacy_header.parquet", "legacy_headers"), "legacy_headers")

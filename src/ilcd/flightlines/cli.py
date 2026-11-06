@@ -13,10 +13,11 @@ log = get_logger(__name__)
 
 
 def _passes(args):
+    from ..data_src.cli import _todo
     from . import passes
 
     params = config.default_params()
-    for f in _ids(args):
+    for f in _todo(_ids(args), args, paths.file_dir, "flightlines.passes"):
         passes.file_passes_step(f, params)
 
 
@@ -65,6 +66,7 @@ def register(sub):
     s.add_argument("ids", nargs="*")
     s.add_argument("--from-file")
     s.add_argument("--chunk")
+    s.add_argument("--skip-existing", action="store_true", help="skip files that already have passes")
     s.set_defaults(fn=_passes)
     s = p.add_parser("link", help="lines and blocks of a region (or 'statewide')")
     s.add_argument("region")

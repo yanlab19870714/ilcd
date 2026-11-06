@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+import numpy as np
 import pytest
 
 from ilcd.common import gpstime
@@ -31,3 +32,12 @@ def test_classify():
         gpstime.classify(False, 0, 700000)
     with pytest.raises(ValueError):
         gpstime.classify(True, -400e6, -399e6)  # 1998
+
+
+def test_invalid_times_are_counted_and_masked():
+    t = np.r_[np.full(1000, 437771.4), [-1.0, -1.0]]
+    ttype, n_bad = gpstime.classify_points(False, t, 0.01)
+    assert ttype == "week_seconds" and n_bad == 2
+    assert gpstime.valid(False, t).sum() == 1000
+    with pytest.raises(ValueError):
+        gpstime.classify_points(False, np.r_[t, np.full(100, -1.0)], 0.01)

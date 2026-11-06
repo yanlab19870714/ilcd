@@ -200,7 +200,8 @@ Key: `file_id`
 | `n_points` | int64 |  |  |  |
 | `point_format` | int16 |  |  |  |
 | `gps_time_type` | string |  |  | From the LAS global-encoding bit, checked against the value range One of: adjusted_standard, week_seconds. |
-| `gps_min_s` | float64 | s |  | As stored in the file |
+| `n_invalid_time` | int64 |  |  | Points whose GPS time is impossible for the header's encoding (dropped by the readers) |
+| `gps_min_s` | float64 | s |  | As stored in the file, valid times only |
 | `gps_max_s` | float64 | s |  |  |
 | `scale_xy` | float64 |  |  | Stored XY scale (degrees in the OT files) |
 | `scale_z` | float64 | m |  |  |

@@ -35,6 +35,8 @@ data_src:
     z_below_ground_m: 3.0         # keep z within [ground p0.1 - this, ground p99.9 + z_above]; old: pair_diagnostics.load
     z_above_ground_m: 60.0
     read_pad_m: 20.0              # margin around a cell when reading points
+    max_invalid_time_share: 0.01  # legacy points with an impossible GPS time are dropped; more than this share is an
+                                  # error (W_Morgan holds class-16 points at t = -1, 2026-11-05)
   ept:
     base_url: https://s3-us-west-2.amazonaws.com/usgs-lidar-public
     pad_m: 20.0
@@ -113,8 +115,11 @@ refs:
     water_buffer_m: 100.0         # patches closer to OSM water are screened out: banks move; old: fit_field.WATER_BUF
     water_kinds: [water_body, river, stream]   # not drain or canal: in farm counties they run along most roads
     water_search_m: 500.0         # distance to any water is recorded on patches up to this far (information)
-    cdl_years: [2012, 2018]       # natural and hard-other patches cultivated in any of these years are excluded
-    cdl_max_share: 0.5            # ... when at least this share of their cells is cultivated (roads are exempt)
+    cdl_years: [2012, 2018]       # USDA CDL years whose cultivated cells count as cropland
+    cdl_max_share: 0.5            # a patch is cropland when at least this share of its cells is cultivated
+    cdl_kinds: []                 # patch kinds excluded when cropland. Empty: the Carroll ablation of 2026-11-06 showed
+                                  # cropland hard ground and flat ground carry line-offset information (CV on OSM roads,
+                                  # stage 1: 4.14 cm kept vs 4.50 cm excluded); the change screen catches tilled fields
   obs:                            # old: patch_scan.py, measure_patches.py
     classes: [2, 12]              # 2011 classes measured on hard ground (class-12 overlap points included)
     outlier_m: 0.30               # drop points farther than this from the cell median residual

@@ -60,3 +60,24 @@ def classify(adjusted_bit: bool, t_min: float, t_max: float) -> str:
     if t_min < 0 or t_max >= WEEK_S:
         raise ValueError(f"header says GPS week time but {t_min:.0f}..{t_max:.0f} is not within one week")
     return "week_seconds"
+
+
+def valid(adjusted_bit: bool, t) -> np.ndarray:
+    """Points whose GPS time is possible in the file's encoding. Some deliveries hold synthetic points without a
+    time (W_Morgan: class 16 at t = -1); they cannot be placed in a pass and are dropped by the readers."""
+    t = np.asarray(t, float)
+    if adjusted_bit:
+        lo, hi = (datetime_to_adjusted(d) for d in ACQUISITION_WINDOW)
+        return (t >= lo) & (t <= hi)
+    return (t >= 0) & (t < WEEK_S)
+
+
+def classify_points(adjusted_bit: bool, t, max_invalid_share: float) -> tuple[str, int]:
+    """(time type, number of points with an impossible time). More than max_invalid_share of such points means the
+    header bit is wrong or the file is damaged: an error."""
+    ok = valid(adjusted_bit, t)
+    n_bad = int(ok.size - ok.sum())
+    if ok.size == 0 or n_bad > max_invalid_share * ok.size:
+        raise ValueError(f"{n_bad} of {ok.size} points have a GPS time impossible for the header's encoding")
+    t = np.asarray(t, float)[ok]
+    return classify(adjusted_bit, float(t.min()), float(t.max())), n_bad

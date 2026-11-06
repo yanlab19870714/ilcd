@@ -132,3 +132,8 @@ def read(path) -> dict:
     from .io import read_json
 
     return read_json(path, "manifest")
+
+
+def done(out_dir, step: str) -> bool:
+    """True when the step has a manifest in out_dir (it finished at least once; inputs are not compared)."""
+    return (Path(out_dir) / f"{step}.manifest.json").exists()

@@ -1,7 +1,7 @@
 """The only reader of raw point clouds (docs/design.md sections 2 and 6.3).
 
 Both readers return a dict of equal-length numpy arrays in the project frame:
-  x, y, z     EPSG:6345 metres; NAVD88 / GEOID12B metres
+  x, y, z     EPSG:6345 metres; NAVD88 / GEOID12B metres (legacy points without a valid GPS time are dropped)
   t           GPS time in the points' time domain (adjusted standard if known, else week seconds)
   scan_deg    scan angle, degrees
   cls         classification
@@ -139,7 +139,9 @@ def read_legacy_file(file_id: str, params, datum: str | None = None, bounds=None
     )
     t = np.asarray(las.gps_time, float)
     bit = las.header.global_encoding.gps_time_type == laspy.header.GpsTimeType.STANDARD
-    if gpstime.classify(bit, float(t.min()), float(t.max())) == "week_seconds" and _known_week(dl):
+    ttype, _ = gpstime.classify_points(bit, t, params["data_src.points.max_invalid_time_share"])
+    time_ok = gpstime.valid(bit, t)
+    if ttype == "week_seconds" and _known_week(dl):
         t = gpstime.week_to_adjusted(int(dl["gps_week"]), t)
     d = {
         "x": x,
@@ -153,7 +155,7 @@ def read_legacy_file(file_id: str, params, datum: str | None = None, bounds=None
         "nr": np.asarray(las.number_of_returns, np.uint8),
         "part": np.full(len(x), part, np.int32),
     }
-    keep = _clean(d, params)
+    keep = _clean(d, params) & time_ok
     return _crop({k: v[keep] for k, v in d.items()}, bounds)
 
 

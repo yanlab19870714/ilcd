@@ -9,10 +9,11 @@ log = get_logger(__name__)
 
 
 def _cell(args):
+    from ..data_src.cli import _todo
     from . import cell
 
     params = config.default_params()
-    for c in _ids(args):
+    for c in _todo(_ids(args), args, lambda c: paths.cell_dir(c) / "refs", "refs.cell"):
         cell.cell_step(c, params)
 
 
@@ -44,6 +45,7 @@ def register(sub):
     s.add_argument("ids", nargs="*")
     s.add_argument("--from-file")
     s.add_argument("--chunk")
+    s.add_argument("--skip-existing", action="store_true", help="skip cells that already have refs")
     s.set_defaults(fn=_cell)
     s = p.add_parser("screen", help="scope-level change screening of patches")
     s.add_argument("region")
