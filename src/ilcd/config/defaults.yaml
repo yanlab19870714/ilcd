@@ -28,6 +28,8 @@ data_src:
   geoid:
     legacy_grid: us_noaa_geoid09_conus.tif   # 2011-13 heights are NAVD88/GEOID09 in US survey feet
     project_grid: us_noaa_g2012bu0.tif       # converted to GEOID12B (0.7 cm at Monroe)
+  osm:
+    url: https://download.geofabrik.de/north-america/us/indiana-latest.osm.pbf
   points:
     noise_classes: [7, 18]
     z_below_ground_m: 3.0         # keep z within [ground p0.1 - this, ground p99.9 + z_above]; old: pair_diagnostics.load
@@ -74,6 +76,9 @@ refs:
     object_hag_m: 0.3             # a point this far above the 3DEP DTM counts as an object
     narrow_half_width_m: 8.0      # old patch_class.HALF_W
     narrow_wide_share: 0.2        # narrow = fewer than this share of cells deeper than the half width; old WIDE_SHARE
+    road_dist_m: 8.0              # a cell is on a road within this distance of an OSM vehicle-road centreline
+    road_share: 0.5               # a patch is a road when at least this share of its cells is; old patch_class
+    not_road: [footway, path, cycleway, steps, pedestrian, bridleway, corridor, proposed, construction]
   roof:                           # old: patches_v2 R_*, measure_patches
     min_hag_m: 2.5
     min_points: 10
@@ -100,7 +105,8 @@ refs:
     flag_min_m: 0.05
     sys_sd_m: 0.015               # floor of the patch-to-patch scatter, and weight floor
     cell_gross_m: 0.30            # cell median this far from the scope median = real change; old: fit_field.GROSS_TILE
-    water_buffer_m: 100.0         # banks move; old: fit_field.WATER_BUF (needs OSM water; not applied yet)
+    water_buffer_m: 100.0         # patches closer to OSM water are screened out: banks move; old: fit_field.WATER_BUF
+    water_search_m: 500.0         # distance to water is recorded up to this far
     use_cdl: true                 # exclude cropland patches (not implemented in the old code; not applied yet)
   obs:                            # old: patch_scan.py, measure_patches.py
     classes: [2, 12]              # 2011 classes measured on hard ground (class-12 overlap points included)
@@ -113,6 +119,8 @@ align:
     scan_knots: 8                 # cubic B-spline knots in scan angle, per block; old: fit_scan S_8
     scan_range_pct: [0.5, 99.5]   # knots span these percentiles of the block's scan angles
     ridge: 0.001                  # on the spline, removes the constant it shares with the line offsets
+    fit_kinds: [all]              # patch kinds stage 1 is fitted on ([all] = every kind); old: final_fit
+    modern_reference_batch: auto  # 3DEP batch fixed at offset 0 (auto = the one with most observations)
     trend: block                  # one along-track trend per block (per-line trends overfit)
     hshift_min_points: 1000       # fewer sloped points -> the line uses its block's mean shift (v3d)
   stage2:
@@ -120,7 +128,6 @@ align:
     lam: 1000.0                   # smoothness weight; old: final_fit default
     ridge: 0.001
     fit_kinds: [road]             # stage 2 is fitted on road patches only
-  modern_reference_batch: auto    # 3DEP batch fixed at offset 0 (auto = the one with most observations)
 
 eval:
   cv:
@@ -129,11 +136,12 @@ eval:
     fold_unit: cell               # cell | patch | file | patch_file. file folds leak: a patch crossing a file boundary
                                   # is seen by passes of both files; the others keep each patch on one side
     segment_unit: cell            # same choices; patch_file = the exploration's tile x pass segments
-  injection:
+  injection:                      # old: fit_field.injection / fit_tradeoff.inject
     radii_m: [50.0, 100.0, 200.0, 500.0, 1000.0]   # old: fit_field.INJECT_R
-    amount_m: 0.10
+    amount_m: 0.10                # alternately + and - at the centres
     n_centres: 30
-    seed: 0
+    seed: 1
+    target_kinds: [all]           # observations that receive the fake change
   status:
     corrected_max_nmad_m: 0.05    # PROVISIONAL
     min_holdout: 10

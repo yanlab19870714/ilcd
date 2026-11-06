@@ -1,27 +1,54 @@
 """The correction-method interface of ilcd's own model (docs/design.md section 8).
 
-fit(d, params) -> Stage1         d from align.inputs.assemble; params = params.section('align')
-Stage1.predict(d)                 correction at observation rows
-to_model(...)                     the `model` contract document and its members table
+fit(d, params) -> Model           d from align.inputs.assemble; params = params.section('align')
+Model.predict(d)                  correction at observation rows (stage 1 + stage 2)
+to_model(...)                     the `model` contract document, its members table and stage-2 coefficients
 
-Point correction (apply) is added with the change module (refactor step 4).
+Which observations each stage is fitted on: align.stage1.fit_kinds and align.stage2.fit_kinds (patch kinds, or
+"all"). The defaults follow the exploration's release fit (final_fit.py): stage 1 on every stable patch, stage 2 on
+road patches. Point correction (apply) is added with the change module (refactor step 4).
 """
+
+from dataclasses import dataclass
 
 import numpy as np
 import pyarrow as pa
 
 from ..common import contracts
-from . import stage1
+from . import stage1, stage2
 
 NAME = "ilcd_two_stage"
 
 
-def fit(d, params: dict, terms=stage1.TERMS_S1, ranges=None) -> stage1.Stage1:
-    return stage1.fit(d, params["stage1"], terms=terms, ranges=ranges)
+@dataclass
+class Model:
+    s1: stage1.Stage1
+    s2: stage2.Stage2 | None = None
+
+    def predict(self, d) -> np.ndarray:
+        p = self.s1.predict(d)
+        return p + self.s2.predict(d) if self.s2 is not None else p
 
 
-def to_model(m: stage1.Stage1, d, sc: str, lines, passes, members, params_sha256: str):
-    """(model.json document, members table). lines/passes/members: the scope's flightlines tables (pandas)."""
+def rows(d, kinds) -> np.ndarray:
+    """Rows of the given patch kinds; [all] means every row."""
+    return np.ones(len(d), bool) if "all" in kinds else d["kind"].isin(kinds).to_numpy()
+
+
+def fit(d, params: dict, terms=stage1.TERMS_S1, ranges=None, with_stage2: bool = True) -> Model:
+    m1 = rows(d, params["stage1"]["fit_kinds"])
+    s1 = stage1.fit(d[m1], params["stage1"], terms=terms, ranges=ranges)
+    if not with_stage2:
+        return Model(s1)
+    m2 = rows(d, params["stage2"]["fit_kinds"])
+    d2 = d[m2]
+    return Model(s1, stage2.fit(d2, d2["dz_m"].to_numpy() - s1.predict(d2), params["stage2"]))
+
+
+def to_model(model: Model, d, sc: str, lines, passes, members, params_sha256: str):
+    """(model.json document, members table, stage-2 arrays for np.savez or None).
+    lines/passes/members: the scope's flightlines tables (pandas)."""
+    m = model.s1
     L = lines.set_index("line_id")
     doc_lines = {}
     for lid, dz0 in m.lines.items():
@@ -56,15 +83,15 @@ def to_model(m: stage1.Stage1, d, sc: str, lines, passes, members, params_sha256
     mem["axis"] = axis_of(mem["heading_deg"])
     members_t = pa.Table.from_pandas(mem.drop(columns="heading_deg"), preserve_index=False)
     w = d["w"].to_numpy()
-    r = d["dz_m"].to_numpy() - m.predict(d)
+    r = d["dz_m"].to_numpy() - model.predict(d)
     doc = {
         "method": NAME,
         "scope": sc,
         "crs": "EPSG:6345+5703",
-        "terms": list(m.terms),
+        "terms": list(m.terms) + (["line_field"] if model.s2 is not None else []),
         "lines": doc_lines,
         "blocks": blocks,
-        "modern": {},
+        "modern": {b: {"dz_m": v, "fixed": b == m.meta.get("modern_ref")} for b, v in m.modern.items()},
         "median_offset_m": m.median_offset,
         "fit": {
             "n_obs": int(len(d)),
@@ -74,4 +101,11 @@ def to_model(m: stage1.Stage1, d, sc: str, lines, passes, members, params_sha256
         },
         "files": {"members.parquet": ""},
     }
-    return doc, members_t.cast(contracts.get("model_members").arrow_schema(), safe=True)
+    arrays = None
+    if model.s2 is not None:
+        doc["stage2"] = {"spacing_m": model.s2.spacing_m, "lam": model.s2.lam}
+        arrays = {}
+        for lid, (tx, ty, c) in model.s2.lines.items():
+            arrays[f"{lid}|tx"], arrays[f"{lid}|ty"], arrays[f"{lid}|coef"] = tx, ty, c
+        doc["files"]["stage2.npz"] = ""
+    return doc, members_t.cast(contracts.get("model_members").arrow_schema(), safe=True), arrays

@@ -58,6 +58,17 @@ def test_stage1_recovers_offsets_and_trends(params):
     assert np.std(d["dz_m"] - m3.predict(d)) > np.std(r)  # the scan curve matters in block 2
 
 
+def test_modern_batch_offset(params):
+    d, *_ = _synthetic(np.random.default_rng(4))
+    d["modern_batch"] = np.where(np.arange(len(d)) % 4 == 0, "B2", "B1")  # B1 has most observations: reference
+    d.loc[d["modern_batch"] == "B2", "dz_m"] -= 0.05  # 2011 minus 3DEP: batch B2 sits 5 cm higher
+    m = stage1.fit(d, params["align.stage1"], terms=stage1.TERMS_S1)
+    assert m.modern["B1"] == 0.0 and m.modern["B2"] == pytest.approx(-0.05, abs=0.003)
+    assert m.meta["modern_ref"] == "B1"
+    one = stage1.fit(d.assign(modern_batch="B1"), params["align.stage1"], terms=stage1.TERMS_S1)
+    assert one.modern == {}
+
+
 def test_unseen_line_uses_median_offset(params):
     d, *_ = _synthetic(np.random.default_rng(1))
     m = stage1.fit(d[d["line_id"] != "abs@5.0"], params["align.stage1"], terms=stage1.TERMS_M3)

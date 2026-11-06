@@ -393,6 +393,8 @@ Geometry: Polygon in EPSG:6345
 | `rough_m` | float32 | m |  | NMAD of 3DEP points about the local surface |
 | `n_modern` | int32 |  |  |  |
 | `narrow` | bool |  |  | Road-like shape: fewer than refs.ground.narrow_wide_share of its cells lie deeper than refs.ground.narrow_half_width_m inside it (old patch_class.py) |
+| `road_share` | float32 |  |  | Share of its cells within refs.ground.road_dist_m of an OSM vehicle road; kind is road when >= refs.ground.road_share |
+| `dist_water_m` | float32 | m | yes | Distance to the nearest OSM water body or waterway; null beyond refs.screen.water_search_m |
 | `n_legacy` | int32 |  |  | 2011 ground points on the patch (all passes, after outlier rejection) |
 | `legacy_dz_m` | float32 | m | yes | Median 2011 minus 3DEP over all its 2011 points (all passes pooled); used by the change screen |
 | `legacy_se_m` | float32 | m | yes |  |

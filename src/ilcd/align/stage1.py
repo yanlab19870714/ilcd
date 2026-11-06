@@ -1,11 +1,13 @@
 """Stage 1 of the correction: one weighted least-squares fit (old fit_scan.py).
 
-    d = dz0[line] + trend[block] * along_km + spline_block(scan) + e,     weight 1 / (sigma^2 + sys_sd^2)
+    d = dz0[line] + trend[block] * along_km + spline_block(scan) + offset[3DEP batch] + e,
+    weight 1 / (sigma^2 + sys_sd^2)
 
 The spline is a cubic B-spline with align.stage1.scan_knots uniform knots over the block's scan-angle range
 (scan_range_pct percentiles); a small ridge on its coefficients removes the constant it shares with the line
 offsets. terms selects what is fitted: ("line_offset", "block_trend") is the exploration's "M3",
-adding "block_scan_spline" gives "S_8".
+adding "block_scan_spline" gives "S_8". "modern_offset" adds one vertical offset per 3DEP batch, the batch with
+the most observations fixed at 0 (align.modern_reference_batch); with a single batch it adds nothing.
 """
 
 from dataclasses import dataclass, field
@@ -14,8 +16,8 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import BSpline
 
-TERMS_M3 = ("line_offset", "block_trend")
-TERMS_S1 = ("line_offset", "block_trend", "block_scan_spline")
+TERMS_M3 = ("line_offset", "block_trend", "modern_offset")
+TERMS_S1 = ("line_offset", "block_trend", "modern_offset", "block_scan_spline")
 
 
 def spline_basis(theta, k: int, lo: float, hi: float) -> np.ndarray:
@@ -30,12 +32,15 @@ class Stage1:
     trend: dict  # block_id -> m per km
     spline: dict  # block_id -> (lo, hi, k, coef)
     median_offset: float
+    modern: dict = field(default_factory=dict)  # 3DEP batch -> offset (reference batch 0)
     meta: dict = field(default_factory=dict)
 
     def predict(self, d: pd.DataFrame) -> np.ndarray:
         out = d["line_id"].map(self.lines).fillna(self.median_offset).to_numpy(float, copy=True)
         if "block_trend" in self.terms:
             out += d["block_id"].map(self.trend).fillna(0.0).to_numpy(float) * d["along_km"].to_numpy(float)
+        if self.modern and "modern_batch" in d:
+            out += d["modern_batch"].map(self.modern).fillna(0.0).to_numpy(float)
         if "block_scan_spline" in self.terms:
             for b, (lo, hi, k, coef) in self.spline.items():
                 m = (d["block_id"] == b).to_numpy()
@@ -66,6 +71,17 @@ def fit(d: pd.DataFrame, p: dict, terms=TERMS_S1, ranges: dict | None = None) ->
             m = (d["block_id"] == b).to_numpy()
             T[m, j] = d["along_km"].to_numpy(float)[m]
         cols.append(T)
+    batches = []
+    if "modern_offset" in terms and "modern_batch" in d and d["modern_batch"].nunique() > 1:
+        counts = d["modern_batch"].value_counts()
+        ref = counts.index[0] if p["modern_reference_batch"] == "auto" else p["modern_reference_batch"]
+        if ref not in counts.index:
+            raise ValueError(f"reference 3DEP batch {ref} has no observations")
+        batches = sorted(b for b in counts.index if b != ref)
+        M = np.zeros((n, len(batches)))
+        for j, b in enumerate(batches):
+            M[(d["modern_batch"] == b).to_numpy(), j] = 1.0
+        cols.append(M)
     k = p["scan_knots"]
     nb = k + 2
     if "block_scan_spline" in terms:
@@ -90,6 +106,10 @@ def fit(d: pd.DataFrame, p: dict, terms=TERMS_S1, ranges: dict | None = None) ->
     if "block_trend" in terms:
         trend = {b: float(coef[off + j]) for j, b in enumerate(blocks)}
         off += len(blocks)
+    modern = {}
+    if batches:
+        modern = {ref: 0.0} | {b: float(coef[off + j]) for j, b in enumerate(batches)}
+        off += len(batches)
     spline = {}
     if n_sp:
         spline = {b: (*ranges[b], k, coef[off + j * nb : off + (j + 1) * nb]) for j, b in enumerate(blocks)}
@@ -99,5 +119,6 @@ def fit(d: pd.DataFrame, p: dict, terms=TERMS_S1, ranges: dict | None = None) ->
         trend=trend,
         spline=spline,
         median_offset=float(np.median(a)),
-        meta={"n_obs": n},
+        modern=modern,
+        meta={"n_obs": n, "modern_ref": ref if batches else None},
     )

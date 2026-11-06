@@ -79,6 +79,17 @@ def _fetch_ancillary(args):
             s.input(ancillary.fetch_ndvi(c, year), hash_file=True)
 
 
+def _osm(args):
+    from . import osm
+
+    params = config.default_params()
+    with Step("data_src.osm", out_dir=paths.cache_ancillary("osm"), params=params.section("data_src.osm")) as s:
+        out = osm.build(params)
+        for f in sorted(out.glob("*.parquet")) + [out / "snapshot.json"]:
+            s.output(f)
+    print(out)
+
+
 def _datum_report(args):
     from . import catalog, datum
 
@@ -146,6 +157,9 @@ def register(sub):
     s.add_argument("delivery", nargs="+")
     s.add_argument("--redecide", action="store_true", help="re-apply the decision rule to the existing samples")
     s.set_defaults(fn=_datum)
+    p.add_parser("osm", help="statewide OSM roads, buildings and water from the Geofabrik extract").set_defaults(
+        fn=_osm
+    )
     s = p.add_parser("datum-report", help="summary of all datum tests, for review")
     s.add_argument("--samples", action="store_true", help="one row per sample instead of per delivery")
     s.set_defaults(fn=_datum_report)

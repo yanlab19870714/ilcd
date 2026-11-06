@@ -23,7 +23,7 @@ from ..common import contracts, crs, grid, ids, io, paths
 from ..common.log import get_logger
 from ..common.manifest import Step
 from ..common.raster import Grid, fill_nearest, nmad, smooth
-from ..data_src import ancillary, points
+from ..data_src import ancillary, osm, points
 from .planes import plane_residual, window_planes
 
 log = get_logger(__name__)
@@ -76,6 +76,43 @@ def _narrow(lab: np.ndarray, k: int, res: float, p: dict) -> np.ndarray:
     area = np.bincount(lab.ravel(), minlength=k + 1)
     with np.errstate(invalid="ignore", divide="ignore"):
         return deep / area < p["narrow_wide_share"]
+
+
+def _road_share(lab: np.ndarray, G: Grid, k: int, p: dict) -> np.ndarray:
+    """Share of each patch's cells within refs.ground.road_dist_m of an OSM vehicle-road centreline (old
+    patch_class.road_share; footways, paths and the like do not count). Index 0 unused."""
+    from rasterio import features
+    from rasterio.transform import Affine
+
+    roads = osm.layer("roads", (G.x0 - 50, G.y0 - 50, G.x0 + G.nx * G.res + 50, G.y0 + G.ny * G.res + 50))
+    roads = roads[~roads["highway"].isin(p["not_road"])]
+    if roads.empty:
+        return np.zeros(k + 1)
+    t = Affine(G.res, 0, G.x0, 0, G.res, G.y0)
+    near = features.rasterize(
+        ((g, 1) for g in roads.geometry.buffer(p["road_dist_m"])),
+        out_shape=(G.ny, G.nx),
+        transform=t,
+        fill=0,
+        dtype="uint8",
+        all_touched=False,
+    )
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.bincount(lab.ravel(), near.ravel().astype(float), k + 1) / np.bincount(lab.ravel(), minlength=k + 1)
+
+
+def _water_distance(polys: list, cell: str, search_m: float) -> list:
+    """Distance from each patch to the nearest OSM water (body or waterway), None beyond search_m. Index 0 unused."""
+    xmin, ymin, xmax, ymax = grid.cell_bounds(cell)
+    water = osm.layer("water", (xmin - search_m, ymin - search_m, xmax + search_m, ymax + search_m))
+    out = [None] * len(polys)
+    if water.empty:
+        return out
+    geoms = water.geometry.values
+    for q in range(1, len(polys)):
+        d = float(geoms.distance(polys[q]).min())
+        out[q] = d if d <= search_m else None
+    return out
 
 
 def _polygons(lab: np.ndarray, G: Grid, k: int) -> list:
@@ -174,6 +211,10 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
     for q in range(1, k + 1):
         parts = m["part"][gl == q]
         batch_of[q] = m["parts"][int(np.bincount(parts).argmax())] if parts.size else m["parts"][0]
+    road = _road_share(lab, G, k, pg)
+    kind = {q: "road" if road[q] >= pg["road_share"] else "hard_other" for q in range(1, k + 1)}
+    pid_of = {q: ids.patch_id(cell, kind[q], q) for q in range(1, k + 1)}
+    dist_water = _water_distance(polys, cell, params["refs.screen.water_search_m"])
     pooled = D.groupby("patch")["r"].agg(["median", "size", lambda v: nmad(v)])
     pooled.columns = ["median", "n", "nmad"]
     rows = []
@@ -181,8 +222,8 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
         pr = pooled.loc[q] if q in pooled.index else None
         rows.append(
             {
-                "patch_id": ids.patch_id(cell, "hard_other", q),
-                "kind": "hard_other",
+                "patch_id": pid_of[q],
+                "kind": kind[q],
                 "source": "ndvi",
                 "modern_batch": batch_of[q],
                 "area_m2": float(area[q]),
@@ -192,6 +233,8 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
                 "rough_m": float(rough[q]),
                 "n_modern": int(n_modern[q]),
                 "narrow": bool(narrow[q]),
+                "road_share": float(road[q]),
+                "dist_water_m": dist_water[q],
                 "n_legacy": int(pr["n"]) if pr is not None else 0,
                 "legacy_dz_m": float(pr["median"]) if pr is not None else None,
                 "legacy_se_m": float(1.2533 * max(pr["nmad"], 0.01) / np.sqrt(pr["n"])) if pr is not None else None,
@@ -214,7 +257,7 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
         rr = v["r"].to_numpy()
         o.append(
             {
-                "patch_id": ids.patch_id(cell, "hard_other", int(q)),
+                "patch_id": pid_of[int(q)],
                 "pass_id": pss,
                 "modern_batch": batch_of[int(q)],
                 "dz_m": float(np.median(rr)),
