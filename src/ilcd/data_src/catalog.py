@@ -2,7 +2,8 @@
 
 legacy_files comes from the OT bucket listing (every LAZ and its size) and the OT tile index (footprints). Files of
 the same name in several folders of one zone are one file_id; the canonical copy is the first folder alphabetically.
-A file missing from the index gets its footprint from its LAS header (HTTP range read).
+A file missing from the index gets its footprint from its points (data_src.footprint_trim_pct percentiles; the file is
+downloaded into the cache): its header box may include stray points far outside the tile.
 
 deliveries is derived: folders from the listing, time types from legacy_headers, datum decisions from datum.json,
 manual facts from config/deliveries.yaml. Rebuild it whenever one of those changes.
@@ -61,8 +62,8 @@ def build_legacy_files(params) -> gpd.GeoDataFrame:
         folder, key, size = copies[0]
         geom = next((index[k] for _, k, _ in copies if k in index.index), None)
         if geom is None:
-            log.info("%s is not in the tile index; footprint from its header", key)
-            geom = box(*http.las_header_bounds(f"{base}/{key}"))
+            log.info("%s is not in the tile index; footprint from its points", key)
+            geom = box(*_point_footprint(f"{base}/{key}", size, params["data_src.footprint_trim_pct"]))
         code, year = _CODE.search(name), _YEAR.match(name)
         if code is None or year is None:
             raise ValueError(f"unexpected legacy file name {name}")
@@ -89,6 +90,20 @@ def build_legacy_files(params) -> gpd.GeoDataFrame:
         sum(len(r["other_deliveries"]) > 0 for r in rows),
     )
     return g
+
+
+def _point_footprint(url: str, size: int, trim_pct: float) -> tuple[float, float, float, float]:
+    """Box of the file's x/y between the trim_pct and 100 - trim_pct percentiles, in the file's own coordinates."""
+    import laspy
+    import numpy as np
+
+    p = paths.cache_legacy(url)
+    if not (p.is_file() and p.stat().st_size == size):
+        http.download(url, p, expected_size=size)
+    las = laspy.read(p)
+    x0, x1 = np.percentile(las.x, [trim_pct, 100 - trim_pct])
+    y0, y1 = np.percentile(las.y, [trim_pct, 100 - trim_pct])
+    return float(x0), float(y0), float(x1), float(y1)
 
 
 def build_modern_batches(params) -> gpd.GeoDataFrame:

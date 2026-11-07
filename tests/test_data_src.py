@@ -117,3 +117,11 @@ def test_delivery_time_type_needs_every_file_header(data_root, monkeypatch, para
     t = {r["delivery_id"]: r for r in catalog.build_deliveries(params, lf).to_pylist()}
     assert t["W_Brown"]["gps_time_type"] == "week_seconds"
     assert t["W_Monroe"]["gps_time_type"] is None  # W.b has no header yet
+
+
+def test_stray_points_outside_the_footprint_are_dropped():
+    from ilcd.data_src.points import _in_footprint
+
+    x = np.array([500.0, 1000.0, 1049.0, 1051.0, -4e5])
+    y = np.array([500.0, 1000.0, 500.0, 500.0, 500.0])
+    assert _in_footprint(x, y, (0.0, 0.0, 1000.0, 1000.0), 50.0).tolist() == [True, True, True, False, False]

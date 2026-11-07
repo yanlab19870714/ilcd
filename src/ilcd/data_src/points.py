@@ -155,8 +155,17 @@ def read_legacy_file(file_id: str, params, datum: str | None = None, bounds=None
         "nr": np.asarray(las.number_of_returns, np.uint8),
         "part": np.full(len(x), part, np.int32),
     }
-    keep = _clean(d, params) & time_ok
+    keep = (
+        _clean(d, params)
+        & time_ok
+        & _in_footprint(x, y, row.geometry.bounds, params["data_src.points.footprint_pad_m"])
+    )
     return _crop({k: v[keep] for k, v in d.items()}, bounds)
+
+
+def _in_footprint(x, y, fb, pad: float) -> np.ndarray:
+    """Points within the file's footprint box (project CRS) + pad; the rest are stray coordinates."""
+    return (x >= fb[0] - pad) & (x <= fb[2] + pad) & (y >= fb[1] - pad) & (y <= fb[3] + pad)
 
 
 def _known_week(dl) -> bool:

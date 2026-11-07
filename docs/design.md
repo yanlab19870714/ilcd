@@ -110,6 +110,11 @@ unique: 2,816 codes occur in more than one folder, and the East and West grids r
 - `legacy_files`: one row per **distinct file** (`file_id`), built from OT's `IN_2011_2013_TileIndex.shp` plus the
   bucket listing. It records the footprint in EPSG:6345, the canonical URL (first folder alphabetically), and every
   folder that lists the file.
+  - The index footprints equal the files' header boxes (300 of 300 sampled, 2026-11-07). One file is missing from the
+    index (W ot_in2013_30401150_12_1); its header box spans Kansas to Indiana because 147 of its 4.2 M points carry
+    stray coordinates. A file missing from the index therefore gets the box of its points' 0.1-99.9 percentiles
+    (`data_src.footprint_trim_pct`), and the legacy reader drops points more than `data_src.points.footprint_pad_m`
+    outside their file's footprint box: a no-op for indexed files, it removes such stray points.
 - `legacy_headers`: one row per file, written when the file is fetched. It records the sha256, point count, GPS range
   and time type, scale and offset, and whether the copies in other folders contain the same points.
 - `deliveries`: one row per OT folder. It records the time type, GPS week if known, datum decision and point_source_id

@@ -12,6 +12,9 @@ data_src:
   counties: https://www2.census.gov/geo/tiger/GENZ2023/shp/cb_2023_us_county_500k.zip
   state_fips: "18"                # Indiana
   max_parallel_downloads: 8       # OT and EPT; rockyweb is never used (it blocks Big Red, HTTP 429)
+  footprint_trim_pct: 0.1         # a file missing from the OT tile index gets the box of its points' x/y percentiles
+                                  # [this, 100 - this]: its header box can hold stray points hundreds of km away
+                                  # (W ot_in2013_30401150_12_1: 147 of 4.2 M points, 2026-11-07)
   datum:
     n_samples: 3                  # sample cells per delivery
     min_margin_m: 0.40            # in a sample, one reading wins when its residual shift is this much smaller
@@ -36,6 +39,8 @@ data_src:
     z_below_ground_m: 3.0         # keep z within [ground p0.1 - this, ground p99.9 + z_above]; old: pair_diagnostics.load
     z_above_ground_m: 60.0
     read_pad_m: 20.0              # margin around a cell when reading points
+    footprint_pad_m: 50.0         # points farther than this outside their file's footprint box are stray coordinates
+                                  # and dropped (OT index boxes equal the header boxes: 300 of 300 files, 2026-11-07)
     max_invalid_time_share: 0.01  # legacy points with an impossible GPS time are dropped; more than this share is an
                                   # error (W_Morgan holds class-16 points at t = -1, 2026-11-05)
   ept:

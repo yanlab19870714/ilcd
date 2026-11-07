@@ -1,6 +1,5 @@
 """HTTP access for data_src: retrying session, atomic downloads, S3 bucket listing, LAS header range reads."""
 
-import struct
 import urllib.parse
 import xml.etree.ElementTree as ET
 from functools import cache
@@ -56,14 +55,3 @@ def list_bucket(base: str, prefix: str) -> list[tuple[str, int]]:
         if root.find("s:IsTruncated", _S3).text != "true" or not rows:
             return rows
         marker = rows[-1][0]
-
-
-def las_header_bounds(url: str) -> tuple[float, float, float, float]:
-    """(xmin, ymin, xmax, ymax) from the public header block of a remote LAS/LAZ (first 375 bytes, uncompressed)."""
-    r = session().get(url, headers={"Range": "bytes=0-374"}, timeout=60)
-    r.raise_for_status()
-    h = r.content
-    if h[:4] != b"LASF":
-        raise ValueError(f"{url} is not a LAS/LAZ file")
-    max_x, min_x, max_y, min_y = struct.unpack_from("<4d", h, 179)
-    return min_x, min_y, max_x, max_y
