@@ -118,6 +118,32 @@ def test_slope_offset_keeps_sloped_bias_out_of_line_offsets(params):
     assert all(abs(v - 0.03) < 0.003 for v in off["block"].slope_off.values())
 
 
+def test_model_round_trip_keeps_slope_offset(params, tmp_path):
+    from ilcd.align import method
+    from ilcd.common import io
+
+    rng = np.random.default_rng(5)
+    d, dz0, _ = _synthetic(rng)
+    d["heading_deg"] = 0.0
+    d["gx"], d["gy"] = rng.normal(0, 0.2, len(d)), rng.normal(0, 0.2, len(d))
+    d["kind"] = np.where(np.arange(len(d)) % 2 == 0, "natural_slope", "road")
+    d.attrs["along_origin_km"] = {("abs@0#B", "ns"): 4300.0, ("abs@9#B", "ns"): 4300.0}
+    s1 = stage1.fit(d, dict(params["align.stage1"], hshift_min_obs=10**9), stage1.TERMS_S1H)
+    lines = pd.DataFrame({"line_id": list(dz0), "x0_m": 500000.0, "y0_m": 4300000.0, "heading_deg": 0.0})
+    lines["block_id"] = d.drop_duplicates("line_id").set_index("line_id").loc[lines["line_id"], "block_id"].to_numpy()
+    passes = pd.DataFrame(
+        {"pass_id": [f"W.f#{i}" for i in range(6)], "file_id": "W.f", "t_start_s": 0.0, "t_end_s": 1.0}
+    ).assign(heading_deg=0.0)
+    members = pd.DataFrame({"pass_id": passes["pass_id"], "line_id": list(dz0)})
+    doc, mem, _ = method.to_model(method.Model(s1), d, "region:test", lines, passes, members, "x")
+    assert doc["fit"]["sloped_ground_offset"]["unit"] == "block"
+    io.write_table(mem, tmp_path / "members.parquet", "model_members")
+    io.write_json(doc, tmp_path / "model.json", "model")
+    back = method.load(tmp_path).model
+    assert back.s1.slope_off == pytest.approx(s1.slope_off)
+    assert np.allclose(back.predict(d), method.Model(s1).predict(d))
+
+
 def test_unseen_line_uses_median_offset(params):
     d, *_ = _synthetic(np.random.default_rng(1))
     m = stage1.fit(d[d["line_id"] != "abs@5.0"], params["align.stage1"], terms=stage1.TERMS_M3)

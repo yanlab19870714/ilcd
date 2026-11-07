@@ -220,6 +220,30 @@
           },
           "params_sha256": {
             "type": "string"
+          },
+          "sloped_ground_offset": {
+            "type": "object",
+            "description": "Nuisance offset of sloped-ground observations (align.stage1.slope_offset), fitted with the horizontal shift and never applied to points",
+            "required": [
+              "unit",
+              "offset_m"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "unit": {
+                "enum": [
+                  "block",
+                  "line"
+                ]
+              },
+              "offset_m": {
+                "type": "object",
+                "description": "keyed by block_id or line_id",
+                "additionalProperties": {
+                  "type": "number"
+                }
+              }
+            }
           }
         }
       },

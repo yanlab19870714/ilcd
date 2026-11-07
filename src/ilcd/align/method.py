@@ -116,6 +116,8 @@ def to_model(model: Model, d, sc: str, lines, passes, members, params_sha256: st
         },
         "files": {"members.parquet": ""},
     }
+    if m.slope_off:
+        doc["fit"]["sloped_ground_offset"] = {"unit": m.meta["slope_offset"], "offset_m": m.slope_off}
     arrays = None
     if model.s2 is not None:
         doc["stage2"] = {"spacing_m": model.s2.spacing_m, "lam": model.s2.lam}
@@ -165,6 +167,8 @@ def load(model_dir) -> Saved:
             for b, e in blocks.items()
             if "hshift_scan_m_per_deg" in e
         },
+        slope_off=dict(so["offset_m"]) if (so := doc["fit"].get("sloped_ground_offset")) else {},
+        meta={"slope_offset": so["unit"]} if so else {},
     )
     s2 = None
     if "stage2" in doc:
