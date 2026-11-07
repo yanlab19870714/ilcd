@@ -303,3 +303,32 @@ The DoD runs in 1-1.5 min per cell. Two findings, both in design.md section 7.1:
   instead of means change nothing, so it is not above-ground contamination. A 95% per-pixel test flags about 5% of
   unchanged pixels, and a local residual offset of the correction (the spread of status bias is about 3 cm) moves
   them to one side. The change product is therefore the object map, with area and magnitude limits.
+
+### Change objects on site eastfork_doug, against the exploration's 325 objects
+
+The site run (`jobs/snakemake.sh eastfork_doug change`) gives 3,256 objects over the box: 1,683 gain (315,721 m²,
++202,827 m³) and 1,573 loss (191,896 m², -145,036 m³); median area 50 m², largest 7,490 m². The exploration
+(runs/2026-10-29_eastfork_h5) found 325 objects in 10 windows of 400 m chosen at change hot spots. Check
+(`compare_old_objects.py`, output `sites/eastfork_doug/change/compare_old.json`): an old object counts as found when
+its centroid lies within 5 m of a new object of the same kind.
+
+| Window | Old | Found | New | Old loss m³ | New loss m³ | Old gain m³ | New gain m³ |
+|---|---|---|---|---|---|---|---|
+| D1 | 22 | 21 | 23 | -654 | -682 | 4,419 | 4,311 |
+| D2 | 19 | 18 | 22 | -7,556 | -8,083 | 1,707 | 2,354 |
+| D3 | 15 | 15 | 14 | -436 | -431 | 5,027 | 5,108 |
+| D4 | 10 | 9 | 8 | -6,156 | -5,903 | 5,899 | 6,158 |
+| D5 | 38 | 37 | 44 | -10,079 | -10,574 | 11,728 | 15,261 |
+| B1 | 51 | 39 | 57 | -5,074 | -6,058 | 3,898 | 3,274 |
+| B2 | 41 | 35 | 40 | -5,793 | -7,972 | 7,442 | 8,751 |
+| B3 | 50 | 47 | 51 | -6,526 | -6,875 | 10,812 | 18,419 |
+| B4 | 48 | 48 | 53 | -3,894 | -3,928 | 4,907 | 5,920 |
+| B5 | 31 | 31 | 40 | -1,515 | -2,747 | 2,990 | 5,761 |
+| All | 325 | 300 | 352 | -47,683 | -53,253 | 58,829 | 75,317 |
+
+- 300 of 325 old objects are found, 97% of their area: all 106 of 100-1,000 m², 22 of 23 above 1,000 m², 172 of
+  196 of 25-100 m². The misses are small objects near the area and magnitude limits; half of them are in B1.
+- New volumes are those of whole objects touching a window, not clipped to it, so they run higher where large objects
+  cross the window edge (B3, B5, D5). Inside windows without such objects the volumes agree within 10%.
+- Accepted: the ported change chain reproduces the exploration's objects; the differences come from the joint
+  correction (174 lines, 1 km stage 2) replacing the exploration's box-only fit.
