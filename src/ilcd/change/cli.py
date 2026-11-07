@@ -121,14 +121,15 @@ def _objects(args):
     geom = config.site_geometry(args.site)
     cells = grid.cells_for_geometry(geom)
     with Step("change.objects", out_dir=out, params={**p, "core_res_m": pm["core_res_m"]}, unit=args.site) as step:
-        parts = []
+        parts, n_cores = [], 0
         for c in cells:
             f = out / "m3c2" / c / "m3c2.parquet"
             if not f.exists():
                 raise FileNotFoundError(f"{f}: run `ilcd change m3c2 {args.site}` for every site cell first")
             step.input(f, "m3c2")
             t = io.read_table(f, "m3c2", columns=["core_id", "x_m", "y_m", "d_m", "lod_m", "sig", "normal_z"])
-            parts.append(t.to_pandas().assign(cell_id=c))
+            parts.append(objects.candidates(t.to_pandas(), p).assign(cell_id=c))
+            n_cores += t.num_rows
         cores = pd.concat(parts, ignore_index=True)
         water = osm.layer("water", geom.buffer(params["refs.screen.water_search_m"]).bounds)
         obj, mem = objects.find(cores, args.site, pm["core_res_m"], water.geometry.values, p)
@@ -140,7 +141,10 @@ def _objects(args):
             step.empty("no change object")
         step.output(io.write_table(mem, out / "object_members.parquet", "object_members"), "object_members")
     k = obj["kind"].value_counts().to_dict() if len(obj) else {}
-    print(f"{args.site}: {len(obj)} objects {k} from {len(cores)} core points in {len(cells)} cells")
+    print(
+        f"{args.site}: {len(obj)} objects {k} from {len(cores)} candidates among {n_cores} core points "
+        f"in {len(cells)} cells"
+    )
 
 
 def _site_cells(args):

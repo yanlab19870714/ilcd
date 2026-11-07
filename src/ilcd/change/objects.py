@@ -4,15 +4,35 @@ Significant core points (|d| > lod and |d| >= change.objects.min_magnitude_m) ar
 plan view with DBSCAN (dbscan_eps_m, dbscan_min_samples) over the whole site, so objects cross cell borders;
 clusters below min_area_m2 (core points x core cell area) are dropped. Objects are numbered by decreasing area.
 Per object: area, signed volume (distance x core cell area), mean and 90th-percentile |distance|, median slope
-(from the normal), distance from its outline to the nearest OSM water, and its outline (union of the core cells).
+(from the normal), distance from its outline to the nearest OSM water, and its outline (its core cells, rasterised
+and vectorised).
 """
 
 import numpy as np
 import pandas as pd
-from shapely.geometry import box
+from shapely.geometry import shape
 from shapely.ops import unary_union
 
 METHOD = "m3c2_dbscan"
+
+
+def candidates(t: pd.DataFrame, p: dict) -> pd.DataFrame:
+    """Rows that can belong to an object (significant, |d| >= min_magnitude_m). A site has ~10^8 core points;
+    keep only these while reading its cells."""
+    return t[t["sig"].to_numpy(bool) & (np.abs(t["d_m"].to_numpy(float)) >= p["min_magnitude_m"])]
+
+
+def outline(x: np.ndarray, y: np.ndarray, res: float):
+    """Union of the res x res core cells of the points, by rasterising them on their own grid."""
+    from rasterio import features
+    from rasterio.transform import Affine
+
+    x0, y0 = np.floor(x.min() / res) * res, np.floor(y.min() / res) * res
+    i, j = np.floor((x - x0) / res).astype(int), np.floor((y - y0) / res).astype(int)
+    a = np.zeros((j.max() + 1, i.max() + 1), np.uint8)
+    a[j, i] = 1
+    t = Affine(res, 0, x0, 0, res, y0)  # row 0 = south
+    return unary_union([shape(g) for g, _ in features.shapes(a, mask=a > 0, transform=t, connectivity=4)])
 
 
 def find(cores: pd.DataFrame, site: str, core_res: float, water, p: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -20,8 +40,9 @@ def find(cores: pd.DataFrame, site: str, core_res: float, water, p: dict) -> tup
     empty). Returns (objects with a shapely `geometry` column, members). p = params.section('change.objects')."""
     from sklearn.cluster import DBSCAN
 
+    cores = candidates(cores, p).reset_index(drop=True)
     d = cores["d_m"].to_numpy(float)
-    sig = cores["sig"].to_numpy(bool) & (np.abs(d) >= p["min_magnitude_m"])
+    sig = np.ones(len(cores), bool)
     cell_area = core_res**2
     found = []
     for kind, sel in (("loss", sig & (d < 0)), ("gain", sig & (d > 0))):
@@ -41,8 +62,7 @@ def find(cores: pd.DataFrame, site: str, core_res: float, water, p: dict) -> tup
         oid = f"{site}.{METHOD}.{n}"
         dk = d[k]
         x, y = cores["x_m"].to_numpy()[k], cores["y_m"].to_numpy()[k]
-        h = core_res / 2
-        geom = unary_union([box(a - h, b - h, a + h, b + h) for a, b in zip(x, y, strict=True)])
+        geom = outline(x, y, core_res)
         slope = np.degrees(np.arccos(np.clip(cores["normal_z"].to_numpy(float)[k], 0, 1)))
         rows.append(
             {

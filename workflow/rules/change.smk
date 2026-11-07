@@ -50,7 +50,7 @@ rule change_m3c2:
 rule change_objects:
     input: expand(_s("chunks/m3c2.{k}.done"), k=SITE_CHUNKS, allow_missing=True)
     output: _m("sites/{site}/change", "change.objects")
-    resources: runtime=60, mem_mb=32000
+    resources: runtime=240, mem_mb=64000
     shell: "ilcd change objects {wildcards.site}"
 
 
