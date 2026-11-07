@@ -329,6 +329,6 @@ its centroid lies within 5 m of a new object of the same kind.
 - 300 of 325 old objects are found, 97% of their area: all 106 of 100-1,000 m², 22 of 23 above 1,000 m², 172 of
   196 of 25-100 m². The misses are small objects near the area and magnitude limits; half of them are in B1.
 - New volumes are those of whole objects touching a window, not clipped to it, so they run higher where large objects
-  cross the window edge (B3, B5, D5). Inside windows without such objects the volumes agree within 10%.
+  cross the window edge (B3, B5, D5). In D1, D3 and D4 the volumes agree within 5%.
 - Accepted: the ported change chain reproduces the exploration's objects; the differences come from the joint
   correction (174 lines, 1 km stage 2) replacing the exploration's box-only fit.
