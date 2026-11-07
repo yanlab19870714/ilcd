@@ -236,3 +236,70 @@ Injection, median absorbed share at 500 m / 1000 m:
 Decision: `align.stage2.fit_kinds` stays `[road]`. The product is change detection, and the extra kinds buy at
 most 0.41 cm on roads in Carroll and 0.04 cm in Monroe, where flat natural ground even makes roads worse, for half
 again as much absorbed change at 1 km. (The injection issue above is decided: the limit is reported.) Runs: `runs/2026-10-23_monroe_full/paired/` (s2fix_*, s2road_*, inj_*).
+
+## Refactor step 4: Bartholomew, Jackson and the cross-county scope (2026-11-06)
+
+Runs: the chunked workflow, `upper` target, per county (controllers 8849847, 8849848) and for the cross-county
+region `bartholomew_jackson` (8850254), then `change` for site `eastfork_doug` (section below). The county and
+cross-county runs predate `align.stage1.slope_offset` (a2f153d); they are re-run with it before the release.
+
+### Correction, by region (1 km cells, default test set; slope = sloped-ground NMAD)
+
+| Region | Lines | Blocks | Obs fitted | line offsets | stage 1 | stage 1 + shift | stage 2 | slope (stage 2) | absorbed at 1 km (stage 2) |
+|---|---|---|---|---|---|---|---|---|---|
+| bartholomew | 80 | 5 | 596,659 | 6.14 cm | 5.41 cm | 5.40 cm | 3.75 cm | 6.50 cm | 17.3% |
+| jackson | 123 | 3 | 781,827 | 7.18 cm | 6.93 cm | 6.96 cm | 4.71 cm | 7.34 cm | 9.1% |
+| bartholomew_jackson | 174 | 5 | 1,333,840 | 6.81 cm | 6.42 cm | 6.43 cm | 4.28 cm | 7.08 cm | 11.3% |
+
+- Datum: every delivery read here is nad83 (E_Bartholomew, E_Jackson, E_IN_E_2012, W_IN_W_2013-Greene, -Owen).
+  The first datum job of E_IN_E_2012 failed and succeeded on retry.
+- Cross-county linking works: the two counties alone have 203 lines, the joint scope 174, so 29 lines cross the
+  county line.
+- 3DEP batch offsets: Bartholomew -1.3 cm (Opt1_B3); Jackson +1.5 to +2.1 cm (Opt1_B5, Opt2_B4, Opt2_B5) relative
+  to Opt1_B4.
+- Jackson's errors are the largest so far, and stage 2 removes most of them (6.96 -> 4.71 cm): its errors vary along
+  the lines more than elsewhere.
+- Status of the joint scope: 4,560 (cell, line) pairs corrected, 982 not corrected, 896 without data, 3 stage 1
+  only; median LoD95 7.7 cm (Monroe 7.3 cm).
+
+### Same-metric comparison on the East Fork box (site eastfork_doug)
+
+The exploration fitted the box alone (49 tiles, 14,308 observations, 15 lines; its own CV with tile folds: stage 1
+6.82 cm, stage 2 3.76 cm with stage 2 fitted on all hard ground). Here both observation sets are fitted on the box
+cells only and scored with 1 km cell folds (`runs/2026-10-23_monroe_full/paired/`-style scripts, logs
+`efsame_*`, `efcheck_*`):
+
+| Test set | Stage | Exploration observations | ilcd observations |
+|---|---|---|---|
+| default (narrow hard ground) | stage 1 | 6.97 cm | 7.31 cm |
+| default (narrow hard ground) | stage 2 | 5.38 cm | 5.75 cm |
+| OSM roads (same definition for both) | stage 1 | 6.54 cm | 6.14 cm |
+| OSM roads (same definition for both) | stage 2 | 4.27 cm | 4.16 cm |
+
+On a test set both observation sets define the same way, ilcd's observations do better at both stages, as in Monroe.
+The default test sets differ: ilcd's includes NDVI hard ground on the floodplain, much of it bare cropland that is
+tilled between the epochs, which raises the score without the correction being worse. In farm counties, compare
+on roads.
+
+What the site actually uses is the joint model, fitted on all 1.33 million observations of both counties. Its
+cross-validated residuals in the box cells (3 repeats):
+
+| Test set | stage 1 | stage 2 |
+|---|---|---|
+| OSM roads, box cells | 6.65 cm | 4.14 cm |
+| narrow hard ground, box cells | 7.32 cm | 4.29 cm |
+| OSM roads, whole region | 6.12 cm | 3.84 cm |
+| narrow hard ground, whole region | 6.41 cm | 4.18 cm |
+
+A box alone (12-15 lines) constrains the lines poorly: the same narrow test set scores 5.75 cm fitted on the box and
+4.29 cm in the joint model, where the box lines borrow observations from outside.
+
+### DoD on real data (Monroe, 4 cells)
+
+The DoD runs in 1-1.5 min per cell. Two findings, both in design.md section 7.1:
+- A 2 m pixel holds 3-4 2011 ground points; their own SD is unstable and set the LoD too low. The point SD is now
+  pooled over 3 x 3 pixels (`change.dod.sd_window_px`): "lowered" pixels drop by 10-28%.
+- 7-9% of pixels remain "lowered" against 1-3% "raised", also on roads (dz -1.4 cm, NMAD 3.8 cm). Pixel medians
+  instead of means change nothing, so it is not above-ground contamination. A 95% per-pixel test flags about 5% of
+  unchanged pixels, and a local residual offset of the correction (the spread of status bias is about 3 cm) moves
+  them to one side. The change product is therefore the object map, with area and magnitude limits.
