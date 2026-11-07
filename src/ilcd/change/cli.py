@@ -34,7 +34,7 @@ def _dod(args):
     status_path = paths.scope_dir(sc) / "eval" / "status.parquet"
     status = io.read_table(status_path, "status").to_pandas()
     base = paths.scope_dir(sc) / "change" / "dod"
-    for cell in _todo(_ids(args), args, lambda c: base / c, "change.dod"):
+    for cell in _todo(_ids(args), args, lambda c: base / c, "change.dod", p):
         out = base / cell
         with Step("change.dod", out_dir=out, params=p, unit=cell) as step:
             step.input(paths.model_dir(sc) / "model.json", "model")
@@ -76,9 +76,10 @@ def _m3c2(args):
     status_path = paths.scope_dir(sc) / "eval" / "status.parquet"
     status = io.read_table(status_path, "status").to_pandas()
     base = paths.site_dir(args.site) / "change" / "m3c2"
-    for cell in _todo(_ids(args), args, lambda c: base / c, "change.m3c2"):
+    sp = {"scope": sc, **p}
+    for cell in _todo(_ids(args), args, lambda c: base / c, "change.m3c2", sp):
         out = base / cell
-        with Step("change.m3c2", out_dir=out, params={"scope": sc, **p}, unit=cell) as step:
+        with Step("change.m3c2", out_dir=out, params=sp, unit=cell) as step:
             step.input(paths.model_dir(sc) / "model.json", "model")
             step.input(status_path, "status")
             leg = method.apply(saved, points.read_legacy(cell, params, pad=p["pad_m"]))

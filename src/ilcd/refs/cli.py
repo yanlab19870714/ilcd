@@ -13,7 +13,9 @@ def _cell(args):
     from . import cell
 
     params = config.default_params()
-    for c in _todo(_ids(args), args, lambda c: paths.cell_dir(c) / "refs", "refs.cell"):
+    for c in _todo(
+        _ids(args), args, lambda c: paths.cell_dir(c) / "refs", "refs.cell", lambda c: cell.step_params(c, params)
+    ):
         cell.cell_step(c, params)
 
 

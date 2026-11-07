@@ -138,10 +138,11 @@ def build_deliveries(params, legacy_files: gpd.GeoDataFrame | None = None) -> pa
     for d in sorted(count):
         zone_dir, folder = ids.parse_delivery(d)
         o = overrides.get(d, {})
-        ttype = None
+        ttype = None  # decided only from the headers of all the delivery's files, never from a part
         if headers is not None:
-            types = set(headers["gps_time_type"].reindex(canonical[d]).dropna())
-            ttype = None if not types else types.pop() if len(types) == 1 else "mixed"
+            types = headers["gps_time_type"].reindex(canonical[d])
+            if types.notna().all():
+                ttype = types.iloc[0] if types.nunique() == 1 else "mixed"
         week = o.get("gps_week")
         datum, source = _datum_decision(d, o)
         rows.append(
@@ -237,6 +238,21 @@ def read_deliveries() -> pd.DataFrame:
 
 def read_modern_batches() -> gpd.GeoDataFrame:
     return _modern_batches(_mtime("modern_batches"))
+
+
+def delivery_facts(deliveries) -> dict:
+    """Per delivery, the decisions that change how its points are read (time domain, GPS week, datum). Steps that read
+    2011 points put them into their manifest params, so a changed decision recomputes exactly the affected units."""
+    d = read_deliveries()
+    out = {}
+    for k in sorted(set(deliveries)):
+        r = d.loc[k]
+        out[k] = {
+            "time_domain": None if pd.isna(r["time_domain"]) else r["time_domain"],
+            "gps_week": None if pd.isna(r["gps_week"]) else int(r["gps_week"]),
+            "datum": None if pd.isna(r["datum"]) else r["datum"],
+        }
+    return out
 
 
 def legacy_file(file_id: str) -> pd.Series:

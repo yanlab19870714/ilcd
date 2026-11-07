@@ -137,3 +137,32 @@ def read(path) -> dict:
 def done(out_dir, step: str) -> bool:
     """True when the step has a manifest in out_dir (it finished at least once; inputs are not compared)."""
     return (Path(out_dir) / f"{step}.manifest.json").exists()
+
+
+@cache
+def _sha_at(path: Path, mtime_ns: int, size: int) -> str:
+    return sha256_file(path)
+
+
+def current(out_dir, step: str, params: dict) -> bool:
+    """True when the step has a manifest in out_dir, made with these params, and none of its hashed inputs has
+    changed since. An input is re-hashed only when it is newer than the manifest, so the check is cheap. Code changes
+    are not detected: after one, recompute explicitly (run without --skip-existing)."""
+    p = Path(out_dir) / f"{step}.manifest.json"
+    if not p.exists():
+        return False
+    doc = json.loads(p.read_text())
+    if doc["params_sha256"] != params_sha256(params):
+        return False
+    t = p.stat().st_mtime_ns
+    for i in doc["inputs"]:
+        if i["sha256"] is None:
+            continue
+        f = Path(i["path"])
+        f = f if f.is_absolute() else paths.data_root() / f
+        if not f.exists():
+            return False
+        st = f.stat()
+        if st.st_mtime_ns > t and _sha_at(f, st.st_mtime_ns, st.st_size) != i["sha256"]:
+            return False
+    return True

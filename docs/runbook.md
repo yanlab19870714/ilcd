@@ -38,13 +38,20 @@ pytest                    # unit tests; no data needed, under a minute
 
 ## 3. Running the pipeline
 
-The module commands are added in refactor steps 2–5; see [modules.md](modules.md). When they exist, a region is
-processed with:
+Each run is a long-lived controller job; Snakemake submits every step as its own Slurm job. Submit from the
+repository root:
 
 ```bash
-snakemake --profile config/profiles/bigred --config region=carroll                  # whole pipeline
-snakemake --profile config/profiles/bigred --config region=carroll <target file>    # up to one output
+sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/snakemake.sh statewide catalog   # once, before any region
+sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/snakemake.sh carroll             # a region, up to model and eval
+sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/snakemake.sh eastfork_doug change  # change products of a site
 ```
+
+The statewide stage fetches every legacy file (42,450 files, 0.48 TB), concatenates their headers, runs the datum
+test of every delivery and writes `deliveries`. It is the only writer of `statewide/catalog` and
+`statewide/deliveries`; region and site runs refuse to start until it has finished, and then only read those files,
+so several regions can run at once. `ilcd data_src deliveries` stops with an error while any delivery lacks the
+headers of all its files or a datum decision (`--partial` writes the table anyway, for inspection).
 
 Snakemake works out which outputs are missing or out of date and submits each step as a Slurm job. Each output
 directory gets a `<step>.manifest.json` that records what was run. Check a file against its contract with:
@@ -59,8 +66,8 @@ ilcd contracts check passes $ILCD_DATA_ROOT/files/W.ot_in2011_31501470_12_1/pass
   a minute with `sbatch`, or let Snakemake submit it.
 - `general` partition: small jobs (1–4 cores, 1 h or less) start soonest. `gpu-debug` is limited to 1 h and 3–4 jobs
   per user.
-- Never install py4dgeo into the main environment, because it changes the numpy version. M3C2 has its own
-  environment.
+- py4dgeo is pip-installed into the main environment with its numpy left as is (`envs/main.yml`); do not let pip
+  upgrade numpy.
 - Do not use rockyweb.usgs.gov: it rate-limits and then blocks the cluster's IP. 3DEP is read from the public EPT
   service.
 

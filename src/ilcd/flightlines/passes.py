@@ -105,9 +105,15 @@ def file_passes(file_id: str, params) -> pa.Table:
     return pa.Table.from_pylist(rows, schema=contracts.get("passes").arrow_schema())
 
 
+def step_params(file_id: str, params) -> dict:
+    """What a file's passes depend on besides its points: flightlines params and its delivery's decisions."""
+    d = catalog.legacy_file(file_id)["delivery_id"]
+    return {**params.section("flightlines"), "delivery": catalog.delivery_facts([d])[d]}
+
+
 def file_passes_step(file_id: str, params):
     out_dir = paths.file_dir(file_id)
-    with Step("flightlines.passes", out_dir=out_dir, params=params.section("flightlines"), unit=file_id) as step:
+    with Step("flightlines.passes", out_dir=out_dir, params=step_params(file_id, params), unit=file_id) as step:
         t = file_passes(file_id, params)
         step.output(io.write_table(t, out_dir / "passes.parquet", "passes"), "passes")
         if t.num_rows == 0:

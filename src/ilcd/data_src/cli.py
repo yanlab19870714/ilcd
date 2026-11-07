@@ -23,7 +23,14 @@ def _deliveries(args):
     params = config.default_params()
     out = paths.catalog("deliveries")
     with Step("data_src.deliveries", out_dir=out.parent, params={}) as s:
-        s.output(io.write_table(catalog.build_deliveries(params), out, "deliveries"), "deliveries")
+        t = catalog.build_deliveries(params)
+        undecided = [r["delivery_id"] for r in t.to_pylist() if r["gps_time_type"] is None or r["datum"] is None]
+        if undecided and not args.partial:
+            raise SystemExit(
+                f"{len(undecided)} deliveries lack the headers of all their files or a datum decision "
+                f"(run the statewide catalog stage, docs/runbook.md): {undecided[:10]}"
+            )
+        s.output(io.write_table(t, out, "deliveries"), "deliveries")
 
 
 def _headers(args):
@@ -47,26 +54,41 @@ def _select(args):
 
 
 def _list(args):
-    from . import regions
+    from . import catalog, regions
 
-    for u in regions.read_selection(ids.scope(args.region), args.unit, args.core):
+    if args.region == ids.STATEWIDE:
+        if args.unit == "cell" or args.core:
+            raise SystemExit("statewide lists files or deliveries")
+        lf = catalog.read_legacy_files()
+        units = sorted(lf["file_id"] if args.unit == "file" else lf["delivery_id"].unique())
+    elif args.unit == "delivery":
+        raise SystemExit("deliveries are listed statewide only")
+    else:
+        units = regions.read_selection(ids.scope(args.region), args.unit, args.core)
+    for u in units:
         print(u)
 
 
-def _todo(ids, args, out_dir, step) -> list[str]:
-    """ids, minus those with a manifest when --skip-existing is given."""
+def _todo(ids, args, out_dir, step, params) -> list[str]:
+    """ids, minus those already done when --skip-existing is given. With params (the dict the step records, or a
+    function of the id returning it), a unit is done when its manifest has these params and unchanged inputs
+    (manifest.current); with None, when it has a manifest at all: for downloads into the raw caches, which depend on
+    no parameter or upstream output."""
     if not getattr(args, "skip_existing", False):
         return ids
-    from ..common.manifest import done
+    from ..common.manifest import current, done
 
-    return [i for i in ids if not done(out_dir(i), step)]
+    if params is None:
+        return [i for i in ids if not done(out_dir(i), step)]
+    of = params if callable(params) else lambda _: params
+    return [i for i in ids if not current(out_dir(i), step, of(i))]
 
 
 def _fetch_legacy(args):
     from . import fetch
 
     params = config.default_params()
-    for f in _todo(_ids(args), args, paths.file_dir, "data_src.fetch_legacy"):
+    for f in _todo(_ids(args), args, paths.file_dir, "data_src.fetch_legacy", None):
         fetch.fetch_legacy_step(f, params)
 
 
@@ -74,7 +96,7 @@ def _fetch_modern(args):
     from . import fetch
 
     params = config.default_params()
-    for c in _todo(_ids(args), args, paths.cell_dir, "data_src.fetch_modern"):
+    for c in _todo(_ids(args), args, paths.cell_dir, "data_src.fetch_modern", None):
         fetch.fetch_modern_step(c, params)
 
 
@@ -82,10 +104,10 @@ def _fetch_ancillary(args):
     from . import ancillary
 
     params = config.default_params()
-    year = params["refs.ground.ndvi_year"]
-    for c in _todo(_ids(args), args, paths.cell_dir, "data_src.fetch_ancillary"):
-        with Step("data_src.fetch_ancillary", out_dir=paths.cell_dir(c), params={"ndvi_year": year}, unit=c) as s:
-            s.input(ancillary.fetch_ndvi(c, year), hash_file=True)
+    sp = {"ndvi_year": params["refs.ground.ndvi_year"]}
+    for c in _todo(_ids(args), args, paths.cell_dir, "data_src.fetch_ancillary", sp):
+        with Step("data_src.fetch_ancillary", out_dir=paths.cell_dir(c), params=sp, unit=c) as s:
+            s.input(ancillary.fetch_ndvi(c, sp["ndvi_year"]), hash_file=True)
 
 
 def _osm(args):
@@ -149,16 +171,18 @@ def register(sub):
         dest="sub", required=True
     )
     p.add_parser("catalog", help="build legacy_files, deliveries, modern_batches").set_defaults(fn=_catalog)
-    p.add_parser("deliveries", help="rebuild deliveries from headers, datum tests, overrides").set_defaults(
-        fn=_deliveries
-    )
+    s = p.add_parser("deliveries", help="rebuild deliveries from headers, datum tests, overrides")
+    s.add_argument("--partial", action="store_true", help="write even if some deliveries are still undecided")
+    s.set_defaults(fn=_deliveries)
     p.add_parser("headers", help="concatenate per-file legacy headers").set_defaults(fn=_headers)
     s = p.add_parser("select", help="files and cells of a region")
     s.add_argument("region")
     s.set_defaults(fn=_select)
-    s = p.add_parser("list", help="print the file_ids or cell_ids of a region's selection")
+    s = p.add_parser(
+        "list", help="print a region's file_ids or cell_ids, or (region `statewide`) all file_ids or deliveries"
+    )
     s.add_argument("region")
-    s.add_argument("unit", choices=["file", "cell"])
+    s.add_argument("unit", choices=["file", "cell", "delivery"])
     s.add_argument("--core", action="store_true", help="only units inside the footprint itself")
     s.set_defaults(fn=_list)
     for name, fn, what in (

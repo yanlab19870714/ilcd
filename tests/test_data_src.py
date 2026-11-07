@@ -82,3 +82,38 @@ def test_raster_helpers():
     assert m[0, 0] == 2.0 and m[1, 3] == 5.0 and np.isnan(m[0, 1])
     assert np.isfinite(fill_nearest(m)).all()
     assert nmad([1, 1, 1, 10]) == 0.0
+
+
+def test_delivery_time_type_needs_every_file_header(data_root, monkeypatch, params):
+    import pandas as pd
+
+    from ilcd.common import io, paths
+    from ilcd.data_src import catalog
+
+    monkeypatch.setattr(config, "load_delivery_overrides", lambda: {})
+    lf = pd.DataFrame(
+        {
+            "file_id": ["W.a", "W.b", "W.c"],
+            "delivery_id": ["W_Monroe", "W_Monroe", "W_Brown"],
+            "other_deliveries": [[], [], []],
+        }
+    )
+    row = {
+        "sha256": "0" * 64,
+        "n_points": 1,
+        "point_format": 1,
+        "n_invalid_time": 0,
+        "gps_min_s": 0.0,
+        "gps_max_s": 1.0,
+        "scale_xy": 0.01,
+        "scale_z": 0.01,
+        "n_psid": 1,
+        "class12_share": 0.0,
+        "copies_identical": None,
+        "fetched_utc": "2026-11-07T00:00:00+00:00",
+    }
+    rows = [dict(row, file_id=f, gps_time_type="week_seconds") for f in ("W.a", "W.c")]
+    io.write_table(pd.DataFrame(rows), paths.catalog("legacy_headers"), "legacy_headers")
+    t = {r["delivery_id"]: r for r in catalog.build_deliveries(params, lf).to_pylist()}
+    assert t["W_Brown"]["gps_time_type"] == "week_seconds"
+    assert t["W_Monroe"]["gps_time_type"] is None  # W.b has no header yet

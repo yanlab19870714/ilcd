@@ -52,3 +52,23 @@ def test_step_writes_manifest_only_on_success(data_root):
             raise RuntimeError("boom")
     assert not (failed / "flightlines.passes.manifest.json").exists()
     assert json.loads(step.path.read_text() if step.path.exists() else "{}") == {}
+
+
+def test_current_compares_params_and_inputs(data_root):
+    import os
+
+    src = data_root / "model.json"
+    src.write_text("a")
+    out = data_root / "cells" / "x"
+    with manifest.Step("change.dod", out_dir=out, params={"k": 1}) as s:
+        s.input(src, hash_file=True)
+    assert manifest.current(out, "change.dod", {"k": 1})
+    assert not manifest.current(out, "change.dod", {"k": 2})
+    later = (out / "change.dod.manifest.json").stat().st_mtime_ns + 10**9
+    os.utime(src, ns=(later, later))  # touched, same content
+    assert manifest.current(out, "change.dod", {"k": 1})
+    src.write_text("b")
+    os.utime(src, ns=(later + 1, later + 1))
+    assert not manifest.current(out, "change.dod", {"k": 1})
+    src.unlink()
+    assert not manifest.current(out, "change.dod", {"k": 1})

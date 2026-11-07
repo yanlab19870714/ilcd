@@ -27,7 +27,7 @@ from ..common import contracts, crs, grid, ids, io, paths
 from ..common.log import get_logger
 from ..common.manifest import Step
 from ..common.raster import Grid, fill_nearest, nmad, smooth
-from ..data_src import ancillary, cdl, osm, points
+from ..data_src import ancillary, catalog, cdl, osm, points
 from .planes import plane_residual, window_planes
 
 log = get_logger(__name__)
@@ -366,9 +366,19 @@ def build(cell: str, params) -> tuple[pa.Table, pa.Table, pa.Table, str | None]:
     return io.to_arrow(patches, "patches"), obs, overlap, None if len(o) else "no observation"
 
 
+def step_params(cell: str, params) -> dict:
+    """What a cell's references depend on besides its inputs: refs params and the decisions of every delivery whose
+    files it reads (datum and time domain place the 2011 points)."""
+    files = points.legacy_files_for(cell, params)
+    lf = catalog.read_legacy_files().set_index("file_id")
+    return {**params.section("refs"), "deliveries": catalog.delivery_facts(lf.loc[files, "delivery_id"])}
+
+
 def cell_step(cell: str, params):
     out = paths.cell_dir(cell) / "refs"
-    with Step("refs.cell", out_dir=out, params=params.section("refs"), unit=cell) as step:
+    with Step("refs.cell", out_dir=out, params=step_params(cell, params), unit=cell) as step:
+        for f in points.legacy_files_for(cell, params):
+            step.input(paths.file_dir(f) / "passes.parquet", "passes")
         patches, obs, overlap, empty = build(cell, params)
         if patches.num_rows:
             step.output(io.write_table(patches, out / "patches.parquet", "patches"), "patches")

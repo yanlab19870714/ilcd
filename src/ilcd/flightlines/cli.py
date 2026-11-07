@@ -17,7 +17,7 @@ def _passes(args):
     from . import passes
 
     params = config.default_params()
-    for f in _todo(_ids(args), args, paths.file_dir, "flightlines.passes"):
+    for f in _todo(_ids(args), args, paths.file_dir, "flightlines.passes", lambda f: passes.step_params(f, params)):
         passes.file_passes_step(f, params)
 
 

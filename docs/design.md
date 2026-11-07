@@ -105,10 +105,16 @@ unique: 2,816 codes occur in more than one folder, and the East and West grids r
 - `legacy_files`: one row per **distinct file** (`file_id`), built from OT's `IN_2011_2013_TileIndex.shp` plus the
   bucket listing. It records the footprint in EPSG:6345, the canonical URL (first folder alphabetically), and every
   folder that lists the file.
-- `legacy_headers`: filled when a file is first fetched. It records the sha256, point count, GPS range and time
-  type, scale and offset, and whether the copies in other folders contain the same points.
+- `legacy_headers`: one row per file, written when the file is fetched. It records the sha256, point count, GPS range
+  and time type, scale and offset, and whether the copies in other folders contain the same points.
 - `deliveries`: one row per OT folder. It records the time type, GPS week if known, datum decision and point_source_id
-  meaning.
+  meaning. The time type is decided from the headers of all the delivery's files, never from part of them.
+
+All four are written by the statewide catalog stage (`workflow/rules/statewide.smk`), which fetches every legacy file
+and tests every delivery's datum before any region runs. Region runs only read them. Until 2026-11-07 region runs
+rebuilt `legacy_headers` and `deliveries` from the files fetched so far: two regions could not run at once, and a
+delivery's time type depended on which of its files had been fetched (15 of the 19 deliveries touched then were
+partly fetched).
 - `modern_batches`: one row per **reference** 3DEP batch, with its boundary. The reference is the 2016–20 statewide
   program: 13 EPT resources `IN_Statewide_*_2017`, selected by `data_src.ept.reference_batches`. The public EPT
   bucket also holds the 2011–13 legacy data itself (`IN_Statewide-<County>Co_2011`), 2010–13 county projects and
@@ -314,7 +320,22 @@ Every step writes `<step>.manifest.json` next to its outputs. It records:
 - the outputs with their sha256;
 - the start and end time, host and Slurm job id.
 
-Snakemake decides what to re-run. The manifest records what was actually done.
+Snakemake decides what to re-run for whole-scope steps. The manifest records what was actually done.
+
+Per-file and per-cell steps run in chunks with `--skip-existing`, and Snakemake cannot see their units; the manifest
+decides instead (`manifest.current`). A unit is skipped only when its manifest was made with the same params and none
+of its hashed inputs has changed since (an input newer than the manifest is re-hashed). So a step's params and inputs
+must cover what it depends on:
+
+- `flightlines.passes`: flightlines params plus its delivery's time domain, GPS week and datum;
+- `refs.cell`: refs params plus the decisions of every delivery it reads; inputs: the passes of those files;
+- `change.dod`, `change.m3c2`: their params; inputs: the scope's model and status table.
+
+A new model, a changed delivery decision or new passes therefore recompute exactly the affected units. Downloads into
+the raw caches (`fetch_legacy`, `fetch_modern`) are skipped on any manifest: they depend on no parameter or upstream
+output. Code changes are not detected; after one, run the step without `--skip-existing`. Until 2026-11-07 any
+manifest meant done, and forcing a chunked rule in Snakemake re-ran nothing (found when the East Fork change products
+were "re-run" on a new model).
 
 ## 11. Testing and acceptance
 
