@@ -1,6 +1,7 @@
 # Manual facts about OT 2011-13 deliveries (folders), each with its evidence. Validated by contract delivery_overrides.
-# Only facts that the automatic checks cannot establish belong here: a GPS week from acquisition metadata, a datum
-# override when the automatic test is ambiguous, and what point_source_id means (diagnostic only).
+# Only facts that the automatic checks cannot establish belong here: a GPS week from acquisition metadata, the GPS time
+# encoding when a delivery's headers carry the wrong bit, a datum override when the automatic test is ambiguous, and
+# what point_source_id means (diagnostic only).
 # Datum decisions found during exploration are NOT entered here: data_src must reproduce them (acceptance tests).
 
 W_Carroll:
@@ -10,3 +11,7 @@ W_Carroll:
 W_Monroe:
   psid_meaning: subtile
   evidence: "2026-10-21 tile 31101425: point_source_id 344/345/364/365 are spatial sub-tiles; passes split by GPS time"
+
+E_Hamilton:
+  gps_time_encoding: adjusted_standard
+  evidence: "2026-11-07 statewide fetch: all 100 checked files have the global-encoding bit clear (week seconds) but GPS times of -15.41e6 or 15.17e6 s, impossible as week seconds and adjusted standard April 2011 / March 2012; 4 files also hold a 15-min flight at 35877-36809 s (2011-09-14, own point_source_ids 31/32, consistent z); written by las2las (version 120813)"

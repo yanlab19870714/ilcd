@@ -9,6 +9,7 @@
       "type": "object", "required": ["evidence"], "additionalProperties": false,
       "properties": {
         "gps_week": {"type": "integer"},
+        "gps_time_encoding": {"enum": ["adjusted_standard", "week_seconds"], "description": "Overrides a wrong LAS global-encoding bit in the delivery's files"},
         "datum": {"enum": ["itrf", "nad83"]},
         "psid_meaning": {"enum": ["line", "subtile", "unknown"]},
         "evidence": {"type": "string"}

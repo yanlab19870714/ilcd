@@ -84,20 +84,38 @@ def _todo(ids, args, out_dir, step, params) -> list[str]:
     return [i for i in ids if not current(out_dir(i), step, of(i))]
 
 
+def _each(ids, fn):
+    """fn for every id; a failing unit is logged and the others still run, then the command fails naming them. A
+    download chunk thus fetches all it can, and the failures are diagnosed together."""
+    failed = []
+    for i in ids:
+        try:
+            fn(i)
+        except Exception:
+            log.exception("%s failed", i)
+            failed.append(i)
+    if failed:
+        raise SystemExit(f"{len(failed)} of {len(ids)} units failed: {failed[:20]}")
+
+
 def _fetch_legacy(args):
     from . import fetch
 
     params = config.default_params()
-    for f in _todo(_ids(args), args, paths.file_dir, "data_src.fetch_legacy", None):
-        fetch.fetch_legacy_step(f, params)
+    _each(
+        _todo(_ids(args), args, paths.file_dir, "data_src.fetch_legacy", None),
+        lambda f: fetch.fetch_legacy_step(f, params),
+    )
 
 
 def _fetch_modern(args):
     from . import fetch
 
     params = config.default_params()
-    for c in _todo(_ids(args), args, paths.cell_dir, "data_src.fetch_modern", None):
-        fetch.fetch_modern_step(c, params)
+    _each(
+        _todo(_ids(args), args, paths.cell_dir, "data_src.fetch_modern", None),
+        lambda c: fetch.fetch_modern_step(c, params),
+    )
 
 
 def _fetch_ancillary(args):

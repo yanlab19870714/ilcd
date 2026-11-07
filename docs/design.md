@@ -88,6 +88,11 @@ unique: 2,816 codes occur in more than one folder, and the East and West grids r
 - data_src reads each file's LAS global-encoding bit and its GPS-time range. It records `gps_time_type`
   (`adjusted_standard` or `week_seconds`) per file, and checks that the bit agrees with the value range. A disagreement
   is an error.
+- A delivery whose headers all carry the wrong bit gets `gps_time_encoding` in `config/deliveries.yaml`, which replaces
+  the bit for its files in every reader (data_src.fetch.adjusted_bit); the range check then applies to the corrected
+  encoding. E_Hamilton (las2las export with the bit cleared, times in adjusted standard) is the known case.
+- A download chunk fetches every file it can, then fails naming the files that did not pass these checks, so one
+  rerun after a fix completes it.
 - Adjusted-standard files are used as they are. Their passes have `time_domain = abs` and can be linked across
   deliveries.
 - Week-seconds files (e.g. Monroe) need a GPS week. The week is set per delivery in `config/deliveries.yaml` when it is

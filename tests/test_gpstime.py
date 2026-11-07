@@ -41,3 +41,25 @@ def test_invalid_times_are_counted_and_masked():
     assert gpstime.valid(False, t).sum() == 1000
     with pytest.raises(ValueError):
         gpstime.classify_points(False, np.r_[t, np.full(100, -1.0)], 0.01)
+
+
+def test_delivery_override_replaces_the_header_bit(monkeypatch):
+    from types import SimpleNamespace
+
+    import laspy
+
+    from ilcd.common import config
+    from ilcd.data_src import fetch
+
+    las = SimpleNamespace(header=SimpleNamespace(global_encoding=laspy.header.GlobalEncoding()))  # bit clear
+    monkeypatch.setattr(
+        config,
+        "load_delivery_overrides",
+        lambda: {"E_Hamilton": {"gps_time_encoding": "adjusted_standard", "evidence": "x"}},
+    )
+    assert fetch.adjusted_bit(las, "E_Hamilton") is True
+    assert fetch.adjusted_bit(las, "W_Monroe") is False
+    t = np.full(100, 15.17e6)
+    assert gpstime.classify_points(fetch.adjusted_bit(las, "E_Hamilton"), t, 0.01)[0] == "adjusted_standard"
+    with pytest.raises(ValueError):
+        gpstime.classify_points(fetch.adjusted_bit(las, "W_Monroe"), t, 0.01)

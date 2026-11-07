@@ -1108,6 +1108,13 @@ Path: `config/deliveries.yaml`
    "gps_week": {
     "type": "integer"
    },
+   "gps_time_encoding": {
+    "enum": [
+     "adjusted_standard",
+     "week_seconds"
+    ],
+    "description": "Overrides a wrong LAS global-encoding bit in the delivery's files"
+   },
    "datum": {
     "enum": [
      "itrf",

@@ -138,7 +138,7 @@ def read_legacy_file(file_id: str, params, datum: str | None = None, bounds=None
         - geoid_undulation(lon, lat, params["data_src.geoid.project_grid"])
     )
     t = np.asarray(las.gps_time, float)
-    bit = las.header.global_encoding.gps_time_type == laspy.header.GpsTimeType.STANDARD
+    bit = fetch.adjusted_bit(las, row["delivery_id"])
     ttype, _ = gpstime.classify_points(bit, t, params["data_src.points.max_invalid_time_share"])
     time_ok = gpstime.valid(bit, t)
     if ttype == "week_seconds" and _known_week(dl):

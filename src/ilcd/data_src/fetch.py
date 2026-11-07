@@ -15,7 +15,7 @@ import laspy
 import numpy as np
 import pyarrow as pa
 
-from ..common import contracts, crs, gpstime, grid, io, paths
+from ..common import config, contracts, crs, gpstime, grid, io, paths
 from ..common.log import get_logger
 from ..common.manifest import Step
 from . import catalog, http
@@ -54,11 +54,25 @@ def fetch_legacy(file_id: str) -> Path:
     return dest
 
 
+def time_encoding_override(delivery_id: str) -> str | None:
+    """The delivery's gps_time_encoding from config/deliveries.yaml, when its headers carry a wrong encoding bit."""
+    return config.load_delivery_overrides().get(delivery_id, {}).get("gps_time_encoding")
+
+
+def adjusted_bit(las, delivery_id: str) -> bool:
+    """Whether the file's GPS times are adjusted standard: the header's global-encoding bit, unless
+    config/deliveries.yaml sets gps_time_encoding for the delivery (docs/design.md section 5)."""
+    o = time_encoding_override(delivery_id)
+    if o is not None:
+        return o == "adjusted_standard"
+    return las.header.global_encoding.gps_time_type == laspy.header.GpsTimeType.STANDARD
+
+
 def header_facts(file_id: str, path: Path, params) -> dict:
     """One legacy_headers row: hash, counts, time type (bit checked against the range), scales."""
     las = laspy.read(path)
     t = np.asarray(las.gps_time)
-    bit = las.header.global_encoding.gps_time_type == laspy.header.GpsTimeType.STANDARD
+    bit = adjusted_bit(las, catalog.legacy_file(file_id)["delivery_id"])
     ttype, n_bad = gpstime.classify_points(bit, t, params["data_src.points.max_invalid_time_share"])
     ok = gpstime.valid(bit, t)
     cls = np.asarray(las.classification)
@@ -83,7 +97,9 @@ def header_facts(file_id: str, path: Path, params) -> dict:
 def fetch_legacy_step(file_id: str, params) -> Path:
     """Fetch one legacy file and write files/<file_id>/legacy_header.parquet (with manifest)."""
     out_dir = paths.file_dir(file_id)
-    with Step("data_src.fetch_legacy", out_dir=out_dir, params={}, unit=file_id) as step:
+    enc = time_encoding_override(catalog.legacy_file(file_id)["delivery_id"])
+    sp = {"gps_time_encoding": enc} if enc else {}
+    with Step("data_src.fetch_legacy", out_dir=out_dir, params=sp, unit=file_id) as step:
         path = fetch_legacy(file_id)
         facts = header_facts(file_id, path, params)
         step.input(path, sha256=facts["sha256"])
