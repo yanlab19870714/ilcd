@@ -49,14 +49,18 @@ data_src ──► flightlines ──► refs ──► align ──► eval
 ## Refactor steps
 
 1. **Repository skeleton**: environments, `common`, all contracts, configs, docs. *(done)*
-2. **data_src → flightlines → refs → align → eval on Carroll.** *(stage 1 accepted 2026-11-05, see acceptance.md;
-   stage 2, horizontal shift and the remaining refs surfaces follow)*
+2. **data_src → flightlines → refs → align → eval on Carroll.** *(done 2026-11-06, see acceptance.md; flat roofs
+   are still missing, see below)*
    - Lines must match point_source_id (purity 1.00 both ways).
    - The old observations run through ilcd reproduce the old CV exactly. Under the same metric, ilcd's own
      observations do no worse (design.md section 11).
-3. **Monroe.** Week-seconds time, ITRF datum, forest cells, the clipped county-line files.
+3. **Monroe.** Week-seconds time, ITRF datum, forest cells, the clipped county-line files. *(done 2026-11-06)*
 4. **Bartholomew + Jackson**: the first cross-county scope.
    - change and viz_label on site `eastfork_doug`.
    - Compare with the 325 objects from the exploration.
+   - Flat roofs (refs.roof, already in defaults.yaml and align.stage1.fit_kinds): not detected yet. Rare outside
+     towns (about one usable roof per tile) but common in Bloomington and Columbus, where they may be the best
+     references. Implement after the site results, then decide by a CV ablation on Monroe and Bartholomew, as for
+     CDL.
 5. **baselines + blind expert labels**, scored by eval.
 6. **Statewide**: catalog-wide datum and time checks, joint solve, DL surface segmentation.
