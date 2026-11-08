@@ -377,3 +377,41 @@ area 50 m², largest 7,493 m². Output: `sites/eastfork_doug/change/compare_old.
 The result is unchanged from step 4: 300 of 325 old objects are found (97% of their area; 172 of 196 of 25-100 m²,
 106 of 106 of 100-1,000 m², 22 of 23 above 1,000 m²). The sloped-ground offset removed 14 small objects over the box
 and changed no window's volume by more than 0.3%. Accepted.
+
+## Observation weight floor `align.stage1.sys_sd_m` (2026-11-08)
+
+An observation's weight is 1 / (sigma^2 + sys_sd^2), sigma its own standard error from the patch fit. Run:
+`runs/2026-11-08_sys_sd/` (`sys_sd_study.py`, one job per region, code 80932ef, default CV).
+
+### What the data say
+
+Held-out stage-2 residuals at the default, by surface kind (residuals over 0.30 m left out). "Floor" is the
+maximum-likelihood s of r ~ N(0, sigma^2 + s^2):
+
+| Kind | sigma median (Carroll / Monroe / Bart.+Jackson) | residual NMAD | floor |
+|---|---|---|---|
+| road | 0.5 / 0.7 / 0.5 cm | 3.8 / 3.4 / 3.7 cm | 4.1 / 3.9 / 4.0 cm |
+| hard_other | 0.8 / 0.9 / 0.7 cm | 4.2 / 4.1 / 4.0 cm | 4.5 / 4.7 / 4.6 cm |
+| natural_flat | 0.4 / 0.6 / 0.5 cm | 3.9 / 4.0 / 4.0 cm | 4.3 / 4.7 / 4.7 cm |
+| natural_slope | 1.8 / 1.8 / 2.2 cm | 7.9 / 6.4 / 6.9 cm | 8.0 / 6.6 / 7.3 cm |
+
+The patch standard error explains a small part of the scatter: what remains (3DEP's own error, classification,
+correction the model cannot predict) is about 4 cm on flat surfaces, and the implied floor is 3-5 cm in every decile
+of sigma. These residuals include the model's prediction error, so 4 cm bounds the floor from above.
+
+### Sensitivity (default CV, same folds; cm)
+
+| sys_sd | 0 | 0.5 | 1 | 1.5 (default) | 2 | 3 | 5 |
+|---|---|---|---|---|---|---|---|
+| Carroll stage 2 | 3.96 | 3.81 | 3.79 | 3.78 | 3.78 | 3.77 | 3.77 |
+| Monroe stage 2 | 4.07 | 3.91 | 3.92 | 3.92 | 3.92 | 3.93 | 3.93 |
+| Bart.+Jackson stage 2 | 4.49 | 4.29 | 4.28 | 4.28 | 4.28 | 4.28 | 4.28 |
+| Carroll slope NMAD | 8.76 | 8.15 | 8.14 | 8.13 | 8.12 | 8.12 | 8.11 |
+| Monroe slope NMAD | 6.50 | 6.50 | 6.50 | 6.50 | 6.50 | 6.50 | 6.50 |
+| Bart.+Jackson slope NMAD | 7.69 | 7.09 | 7.07 | 7.06 | 7.06 | 7.06 | 7.06 |
+
+Without a floor the few observations with a tiny sigma dominate and every region gets worse (stage 2 +0.15 to
++0.21 cm). From 0.5 to 5 cm stage 2 moves by at most 0.04 cm. Decision: the default stays 0.015 m; the result is
+insensitive to the floor over that range. The `refs.screen.sys_sd_m` floor of the change screen is a separate
+parameter and was not varied.
+
