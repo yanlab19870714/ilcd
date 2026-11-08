@@ -121,25 +121,33 @@ def test_cell(cell: str, params) -> dict | None:
     return out
 
 
-def winner(s: dict, min_margin_m: float) -> str | None:
-    """Hypothesis with the clearly smaller residual shift in one sample, or None if the margin is too small."""
+def winner(s: dict, p: dict) -> str | None:
+    """The reading this sample votes for, or None when it carries no datum information.
+
+    A sample votes when one reading's residual shift is smaller by at least p['min_margin_m'] and also below
+    p['max_winner_share'] of the distance between the two readings' shifts (the datum transform, about 1.1 m in
+    Indiana). Where the flight line's own horizontal error is as large as that transform, both readings are far off and
+    the smaller one says nothing about the datum (E_Hamilton E0565N4443: 0.82 vs 0.70 m; W_IN_W_2013-Posey E0409N4190:
+    0.92 vs 1.92 m; 2026-11-07).
+    """
     r = {h: float(np.hypot(s[h]["dx_m"], s[h]["dy_m"])) for h in HYPOTHESES}
+    sep = float(np.hypot(s["itrf"]["dx_m"] - s["nad83"]["dx_m"], s["itrf"]["dy_m"] - s["nad83"]["dy_m"]))
     a, b = sorted(HYPOTHESES, key=r.get)
-    return a if r[b] - r[a] >= min_margin_m else None
+    return a if r[b] - r[a] >= p["min_margin_m"] and r[a] <= p["max_winner_share"] * sep else None
 
 
 def decide(samples: list[dict], p: dict) -> str:
-    """The hypothesis that wins every informative sample (at least p['min_informative'] of them), else ambiguous.
+    """The reading all votes go to, with at least p['min_votes'] votes from informative samples, else ambiguous.
 
     The test is relative: the two readings differ by a fixed transform (about 1.1 m in Indiana), while one flight
     line's own horizontal error can leave a few decimetres under the right reading. An absolute residual threshold
-    would mistake such line errors for a datum problem (W_IN_W_2013-Tippecanoe, 2026-11-05).
+    would mistake such line errors for a datum problem (W_IN_W_2013-Tippecanoe, 2026-11-05). Samples that do not vote
+    (winner None) abstain; a vote for the other reading makes the delivery ambiguous.
     """
-    good = [s for s in samples if s["informative"]]
-    if len(good) < p["min_informative"]:
+    votes = [w for s in samples if s["informative"] and (w := winner(s, p)) is not None]
+    if len(votes) < p["min_votes"] or len(set(votes)) != 1:
         return "ambiguous"
-    wins = {winner(s, p["min_margin_m"]) for s in good}
-    return wins.pop() if len(wins) == 1 and None not in wins else "ambiguous"
+    return votes[0]
 
 
 def test_delivery(delivery: str, params) -> dict:
@@ -167,7 +175,7 @@ def test_delivery(delivery: str, params) -> dict:
                 if s["informative"]:
                     break
         for smp in samples:
-            smp["winner"] = winner(smp, p["min_margin_m"]) if smp["informative"] else None
+            smp["winner"] = winner(smp, p) if smp["informative"] else None
         doc = {
             "delivery_id": delivery,
             "decision": decide(samples, p),
@@ -195,7 +203,7 @@ def redecide(delivery: str, params) -> dict:
     with Step("data_src.datum_redecide", out_dir=out_dir, params=p, unit=delivery) as step:
         step.input(path, "datum")
         for smp in doc["samples"]:
-            smp["winner"] = winner(smp, p["min_margin_m"]) if smp["informative"] else None
+            smp["winner"] = winner(smp, p) if smp["informative"] else None
         doc["decision"] = decide(doc["samples"], p)
         step.output(io.write_json(doc, path, "datum"), "datum")
     return doc

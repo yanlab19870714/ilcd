@@ -17,8 +17,9 @@ data_src:
                                   # (W ot_in2013_30401150_12_1: 147 of 4.2 M points, 2026-11-07)
   datum:
     n_samples: 3                  # sample cells per delivery
-    min_margin_m: 0.40            # in a sample, one reading wins when its residual shift is this much smaller
-    min_informative: 2            # informative samples needed for a decision; all must have the same winner
+    min_margin_m: 0.40            # a sample votes for the reading whose residual shift is this much smaller ...
+    max_winner_share: 0.5         # ... and below this share of the distance between the two readings' shifts
+    min_votes: 2                  # votes needed for a decision; all must be for the same reading
     max_residual_m: 0.30          # diagnostic only: residual of the winner above this flags a line-level shift
     coarse_step_m: 0.5            # two-stage grid search of the residual shift; old: pair_diagnostics.main
     coarse_span_m: 4.0

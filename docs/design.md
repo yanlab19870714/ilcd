@@ -176,9 +176,14 @@ The test is **relative**. The two readings differ by a fixed transform, about 1.
 own horizontal error can leave a few decimetres of residual shift even under the right reading. That happened at
 W_IN_W_2013-Tippecanoe on 2026-11-05: 0.5 m in one sample against 1.5 m under the other reading. So:
 
-- In each informative sample, the reading whose residual shift is smaller by at least `data_src.datum.min_margin_m`
-  (0.4 m) wins.
-- The decision is the reading that wins every informative sample, with at least `min_informative` (2) of them.
+- An informative sample votes for the reading whose residual shift is smaller by at least
+  `data_src.datum.min_margin_m` (0.4 m) and below `max_winner_share` (0.5) of the distance between the two readings'
+  shifts (the transform itself). A sample where the line's own horizontal error is as large as the transform has
+  both readings far off; it abstains. On 2026-11-07 one sample in each of E_Hamilton, W_IN_W_2013-Dubois, -Pike,
+  -Porter and -Posey was like that (0.7-1.9 m under both readings) while the other two put NAD83 within 0.4 m; the
+  earlier rule (every sample must have a winner) left these five ambiguous.
+- The decision is the reading that gets every vote, with at least `min_votes` (2) votes. Re-applied to all 81
+  deliveries this changed only those five (to NAD83).
 - Any other outcome is `ambiguous`: data_src stops with an error, and the delivery needs a manual entry in
   `config/deliveries.yaml`.
 - A winner whose residual exceeds `max_residual_m` (0.3 m) is recorded as a diagnostic. It points to a line-level

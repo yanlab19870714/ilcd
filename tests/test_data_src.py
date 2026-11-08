@@ -66,13 +66,19 @@ def test_decide_is_relative(params):
     carroll = _sample((-0.7, 0.9), (0.0, 0.0))
     monroe = _sample((0.0, 0.05), (0.7, -0.83))
     line_error = _sample((-0.5, 1.4), (0.1, 0.5))  # Tippecanoe E0494N4485: nad83 still wins by 1 m
-    assert datum.winner(line_error, p["min_margin_m"]) == "nad83"
+    assert datum.winner(line_error, p) == "nad83"
     assert datum.decide([carroll, line_error], p) == "nad83"
     assert datum.decide([monroe, monroe], p) == "itrf"
     assert datum.decide([carroll, monroe], p) == "ambiguous"  # samples disagree
     assert datum.decide([carroll], p) == "ambiguous"  # too few informative samples
     assert datum.decide([carroll, _sample((0.5, 0.5), (0.4, 0.4))], p) == "ambiguous"  # no clear winner
     assert datum.decide([carroll, carroll, _sample((0, 0), (1, 1), informative=False)], p) == "nad83"
+    both_off = _sample((-0.8, 0.2), (0.0, -0.7))  # Hamilton E0565N4443: the line's own shift ~ the transform
+    assert datum.winner(both_off, p) is None
+    assert datum.decide([carroll, carroll, both_off], p) == "nad83"  # abstains
+    far = _sample((0.2, -0.9), (0.9, -1.7))  # Posey E0409N4190: itrf smaller by 1 m, yet 0.9 m off
+    assert datum.winner(far, p) is None
+    assert datum.decide([carroll, far], p) == "ambiguous"  # one vote is not enough
 
 
 def test_raster_helpers():
