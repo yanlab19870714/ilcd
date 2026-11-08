@@ -241,7 +241,7 @@ again as much absorbed change at 1 km. (The injection issue above is decided: th
 
 Runs: the chunked workflow, `upper` target, per county (controllers 8849847, 8849848) and for the cross-county
 region `bartholomew_jackson` (8850254), then `change` for site `eastfork_doug` (section below). The county and
-cross-county runs predate `align.stage1.slope_offset` (a2f153d); they are re-run with it before the release.
+cross-county runs predate `align.stage1.slope_offset` (a2f153d); the re-run with it is recorded in the last section.
 
 ### Correction, by region (1 km cells, default test set; slope = sloped-ground NMAD)
 
@@ -332,3 +332,48 @@ its centroid lies within 5 m of a new object of the same kind.
   cross the window edge (B3, B5, D5). In D1, D3 and D4 the volumes agree within 5%.
 - Accepted: the ported change chain reproduces the exploration's objects; the differences come from the joint
   correction (174 lines, 1 km stage 2) replacing the exploration's box-only fit.
+
+## Re-run of every region and the site with one code version (2026-11-08)
+
+Code 86cd9cf, after the statewide catalog stage (point footprints for files missing from the tile index, stray points
+dropped, the E_Hamilton time-encoding override, the datum voting rule). Controllers 8876914-8876919: the `upper`
+target of carroll, monroe, bartholomew, jackson and bartholomew_jackson, then `change` for eastfork_doug. Every model
+has the same params hash and a per-block sloped-ground offset (`fit.sloped_ground_offset` in model.json).
+
+### Correction, by region (1 km cells, default test set; slope = sloped-ground NMAD)
+
+| Region | Lines | Blocks | Obs fitted | line offsets | stage 1 | stage 1 + shift | stage 2 | slope (stage 2) | absorbed at 500 m / 1 km (stage 2) |
+|---|---|---|---|---|---|---|---|---|---|
+| carroll | 59 | 2 | 412,147 | 4.35 cm | 3.88 cm | 3.86 cm | 3.78 cm | 8.13 cm | 3.3% / 13.9% |
+| monroe | 101 | 4 | 1,080,156 | 5.52 cm | 4.84 cm | 4.75 cm | 3.92 cm | 6.50 cm | 3.4% / 13.3% |
+| bartholomew | 80 | 5 | 596,659 | 6.14 cm | 5.41 cm | 5.39 cm | 3.75 cm | 6.49 cm | 5.6% / 17.1% |
+| jackson | 123 | 3 | 781,827 | 7.18 cm | 6.93 cm | 6.92 cm | 4.70 cm | 7.33 cm | 3.6% / 8.9% |
+| bartholomew_jackson | 174 | 5 | 1,333,840 | 6.81 cm | 6.42 cm | 6.40 cm | 4.28 cm | 7.06 cm | 2.7% / 11.5% |
+
+- `carroll` is the whole county with its padding (59 lines), not the 31-line `carroll_acceptance` of step 2.
+- Monroe, Bartholomew, Jackson and the joint scope match the step 3 and 4 tables to 0.04 cm; the stage 1 + shift
+  column improves as the sloped-ground offset predicts. The catalog changes moved no observation in these regions.
+- At 200 m or less, at most 0.6% of an injected change is absorbed in every region.
+
+### Change objects on site eastfork_doug, against the exploration's 325 objects
+
+3,242 objects over the box: 1,677 gain (315,624 m², +202,764 m³) and 1,565 loss (191,755 m², -144,925 m³); median
+area 50 m², largest 7,493 m². Output: `sites/eastfork_doug/change/compare_old.json`.
+
+| Window | Old | Found | New | Old loss m³ | New loss m³ | Old gain m³ | New gain m³ |
+|---|---|---|---|---|---|---|---|
+| D1 | 22 | 21 | 23 | -654 | -681 | 4,419 | 4,310 |
+| D2 | 19 | 18 | 22 | -7,556 | -8,082 | 1,707 | 2,356 |
+| D3 | 15 | 15 | 14 | -436 | -431 | 5,027 | 5,107 |
+| D4 | 10 | 9 | 8 | -6,156 | -5,901 | 5,899 | 6,157 |
+| D5 | 38 | 37 | 44 | -10,079 | -10,588 | 11,728 | 15,259 |
+| B1 | 51 | 39 | 56 | -5,074 | -6,050 | 3,898 | 3,267 |
+| B2 | 41 | 35 | 39 | -5,793 | -7,972 | 7,442 | 8,715 |
+| B3 | 50 | 47 | 49 | -6,526 | -6,891 | 10,812 | 18,384 |
+| B4 | 48 | 48 | 53 | -3,894 | -3,922 | 4,907 | 5,931 |
+| B5 | 31 | 31 | 40 | -1,515 | -2,741 | 2,990 | 5,772 |
+| All | 325 | 300 | 348 | -47,683 | -53,259 | 58,829 | 75,258 |
+
+The result is unchanged from step 4: 300 of 325 old objects are found (97% of their area; 172 of 196 of 25-100 m²,
+106 of 106 of 100-1,000 m², 22 of 23 above 1,000 m²). The sloped-ground offset removed 14 small objects over the box
+and changed no window's volume by more than 0.3%. Accepted.
