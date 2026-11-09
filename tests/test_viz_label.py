@@ -58,6 +58,11 @@ def test_sample_strata_and_squares(params):
     big = box(X0, Y0, X0 + 300, Y0 + 10)
     g, size = sample.square(big, sc)
     assert size == 360.0 and g.contains(big)
+    site = (X0, Y0, X0 + 1000, Y0 + 1000)
+    g, size = sample.square(box(X0 + 5, Y0 + 990, X0 + 15, Y0 + 995), sc, site)  # at the north-west corner
+    assert size == 150.0 and g.bounds == (X0, Y0 + 850, X0 + 150, Y0 + 1000)
+    g, _ = sample.square(big, sc, (X0, Y0, X0 + 200, Y0 + 2000))  # site narrower than the square: centred
+    assert g.bounds[0] == X0 - 80
     gdf = gpd.GeoDataFrame(s, geometry="geometry", crs=PROJECT_CRS)
     io.to_arrow(gdf, "scenes")  # matches the contract
 

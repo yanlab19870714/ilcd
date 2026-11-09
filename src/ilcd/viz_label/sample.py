@@ -20,17 +20,24 @@ def strata(obj: pd.DataFrame, p: dict) -> pd.Series:
     return obj["kind"].astype(str) + "/" + area + "/" + near
 
 
-def square(geom, p: dict):
-    """Scene square around an object: min_size_m, or its extent plus 2 x margin_m, centred on its bounds."""
+def square(geom, p: dict, within=None):
+    """Scene square around an object: min_size_m, or its extent plus 2 x margin_m, centred on its bounds. With
+    `within` (the site's bounds), a square reaching past them is moved inside, as far as the site is wide: cells
+    outside the site have no M3C2."""
     xmin, ymin, xmax, ymax = geom.bounds
     size = max(p["min_size_m"], max(xmax - xmin, ymax - ymin) + 2 * p["margin_m"])
     size = float(np.ceil(size / 10.0) * 10.0)
-    cx, cy = (xmin + xmax) / 2, (ymin + ymax) / 2
-    return box(cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2), size
+    c = [(xmin + xmax) / 2, (ymin + ymax) / 2]
+    if within is not None:
+        for k in (0, 1):
+            lo, hi = within[k] + size / 2, within[k + 2] - size / 2
+            c[k] = min(max(c[k], lo), hi) if lo <= hi else (within[k] + within[k + 2]) / 2
+    return box(c[0] - size / 2, c[1] - size / 2, c[0] + size / 2, c[1] + size / 2), size
 
 
-def choose(obj, review: dict, scene: dict) -> pd.DataFrame:
-    """obj: GeoDataFrame of contract `objects`. Returns rows of contract `scenes` (with a shapely geometry)."""
+def choose(obj, review: dict, scene: dict, within=None) -> pd.DataFrame:
+    """obj: GeoDataFrame of contract `objects`; within: the site's bounds. Returns rows of contract `scenes` (with a
+    shapely geometry)."""
     st = strata(obj, review)
     rng = np.random.default_rng(review["seed"])
     rows = []
@@ -38,7 +45,7 @@ def choose(obj, review: dict, scene: dict) -> pd.DataFrame:
         idx = np.flatnonzero((st == s).to_numpy())
         pick = np.sort(rng.choice(idx, min(review["per_stratum"], idx.size), replace=False))
         for i in pick:
-            g, size = square(obj.geometry.iloc[i], scene)
+            g, size = square(obj.geometry.iloc[i], scene, within)
             rows.append(
                 {
                     "scene_id": f"s{len(rows) + 1:03d}",

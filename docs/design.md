@@ -278,8 +278,9 @@ with a 3-D window takes 800-1,400 windows of 150-300 m, about 1 MB each, more th
   with same-period orthophotos, synced cameras) exist for a **review sample** of objects, stratified by kind
   (loss, gain) x area (`viz_label.review.area_bins_m2`) x distance to water (`near_water_m`), up to
   `per_stratum` objects per stratum, drawn with a fixed seed. One scene per sampled object: a square centred on
-  it, `scene.min_size_m` or the object's extent plus `2 x scene.margin_m`, whichever is larger. Other objects
-  inside the square are shown too.
+  it, `scene.min_size_m` or the object's extent plus `2 x scene.margin_m`, whichever is larger, moved inside the
+  site where it would reach past it (cells outside the site have no M3C2). Other objects inside the square are
+  shown too.
 
 **Files** (`sites/<site>/viz/`): `scenes.parquet` (contract `scenes`), `scenes/<scene_id>.json` (packed points,
 grids and images of one scene), `overview.png` with `overview.json` (its bounds), and `index.html`, which embeds the

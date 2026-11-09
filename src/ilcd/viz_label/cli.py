@@ -36,7 +36,8 @@ def _scenes(args):
     with Step("viz_label.scenes", out_dir=out, params=p, unit=args.site) as step:
         step.input(_objects_path(args.site), "objects")
         obj = io.read_vector(_objects_path(args.site), "objects")
-        s = gpd.GeoDataFrame(sample.choose(obj, p["review"], p["scene"]), geometry="geometry", crs=PROJECT_CRS)
+        within = config.site_geometry(args.site).bounds
+        s = gpd.GeoDataFrame(sample.choose(obj, p["review"], p["scene"], within), geometry="geometry", crs=PROJECT_CRS)
         step.output(io.write_table(s, _scenes_path(args.site), "scenes"), "scenes")
     print(f"{args.site}: {len(s)} scenes from {len(obj)} objects")
     for k, n in s["stratum"].value_counts().sort_index().items():
