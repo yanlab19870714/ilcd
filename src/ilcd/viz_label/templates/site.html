@@ -51,6 +51,8 @@ tr.ob.on td { background: var(--panel); box-shadow: inset 3px 0 0 var(--sel); }
 .panels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 @media (max-width: 760px) { .panels { grid-template-columns: 1fr; } }
 .pane { display: grid; gap: 4px; min-width: 0; align-content: start; }
+.phead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.phead button { padding: 1px 8px; font-size: 12px; }
 .pane canvas { width: 100%; aspect-ratio: 1 / 1; display: block; background: var(--scene); border-radius: 3px; touch-action: none; cursor: grab; }
 .ramp { height: 10px; border-radius: 2px; background: linear-gradient(90deg, var(--ero), #d6d6d2 50%, var(--dep)); }
 .ramp-l { display: flex; justify-content: space-between; font: 400 11px var(--f-mono); color: var(--muted); }
@@ -84,7 +86,7 @@ tr.ob.on td { background: var(--panel); box-shadow: inset 3px 0 0 var(--sel); }
         <span class="meta" id="count"></span>
       </div>
       <div class="objtbl"><table>
-        <thead><tr><th data-k="n">#</th><th data-k="area_m2" class="num">Area m²</th><th data-k="mean_dz_m" class="num">Mean m</th><th data-k="volume_m3" class="num">Vol m³</th><th data-k="dist_water_m" class="num">To water m</th><th data-k="slope_deg" class="num">Slope °</th><th data-k="label">Label</th></tr></thead>
+        <thead><tr><th data-k="n">#</th><th data-k="area_m2" class="num">Area m²</th><th data-k="mean_dz_m" class="num">Mean m</th><th data-k="absvol" class="num" title="Sorts by the size of the volume change">Vol m³</th><th data-k="dist_water_m" class="num">To water m</th><th data-k="slope_deg" class="num">Slope °</th><th data-k="label">Label</th></tr></thead>
         <tbody id="objs"></tbody>
       </table></div>
       <div class="editor" id="editor">
@@ -102,9 +104,9 @@ tr.ob.on td { background: var(--panel); box-shadow: inset 3px 0 0 var(--sel); }
     <div class="bar">
       <h2>3-D scene</h2>
       <div role="group" aria-label="M3C2 colouring" style="display:inline-flex">
-        <button id="m-sig" aria-pressed="true">Significant</button><button id="m-all" aria-pressed="false">All distances</button><button id="m-obj" aria-pressed="false">Objects</button>
+        <button id="m-sig" aria-pressed="false">Significant</button><button id="m-all" aria-pressed="false">All distances</button><button id="m-obj" aria-pressed="true">Objects</button>
       </div>
-      <label class="ctl"><input id="mask" type="checkbox" checked> Change on terrain</label>
+      <label class="ctl"><input id="mask" type="checkbox" checked> Change overlay on ground panels</label>
       <label class="ctl">Point size <input id="psize" type="range" min="1" max="6" step="0.5" value="2"></label>
       <label class="ctl">Vertical × <input id="zx" type="range" min="1" max="4" step="0.5" value="1"></label>
       <span class="meta" id="smeta"></span>
@@ -114,8 +116,8 @@ tr.ob.on td { background: var(--panel); box-shadow: inset 3px 0 0 var(--sel); }
       <div class="pane"><h3>2011–2013 points, corrected</h3><canvas id="c0" aria-label="2011 points"></canvas></div>
       <div class="pane"><h3>3DEP points</h3><canvas id="c1" aria-label="3DEP points"></canvas></div>
       <div class="pane"><h3>M3C2 change</h3><canvas id="c2" aria-label="M3C2 change"></canvas></div>
-      <div class="pane"><h3 id="h3">2011 ground · 2011 photo</h3><canvas id="c3" aria-label="2011 ground with 2011 photo"></canvas></div>
-      <div class="pane"><h3 id="h4">3DEP ground · NAIP photo</h3><canvas id="c4" aria-label="3DEP ground with NAIP photo"></canvas></div>
+      <div class="pane"><div class="phead"><h3 id="h3">2011 ground · 2011 photo</h3><button class="ovl" aria-pressed="true" title="Show or hide the change overlay on the ground panels">Overlay</button></div><canvas id="c3" aria-label="2011 ground with 2011 photo"></canvas></div>
+      <div class="pane"><div class="phead"><h3 id="h4">3DEP ground · NAIP photo</h3><button class="ovl" aria-pressed="true" title="Show or hide the change overlay on the ground panels">Overlay</button></div><canvas id="c4" aria-label="3DEP ground with NAIP photo"></canvas></div>
       <div class="box">
         <h3>Colours</h3>
         <p class="key"><span class="sw" style="background:linear-gradient(90deg,#5c452e,#dbc28c)"></span>Ground (class 2), dark = low, pale = high</p>
@@ -176,7 +178,7 @@ try { labels = JSON.parse(localStorage.getItem(LKEY) || "{}"); } catch (e) { lab
 try { $("annot").value = localStorage.getItem(AKEY) || ""; } catch (e) {}
 const save = () => { try { localStorage.setItem(LKEY, JSON.stringify(labels)); } catch (e) {} };
 
-let sel = -1, rows = [], sortKey = "area_m2", sortDir = -1;
+let sel = -1, rows = [], sortKey = "absvol", sortDir = -1;   // largest volume change first
 
 function visible() {
   const k = $("fkind").value, s = $("fscene").value, l = $("flab").value;
@@ -185,7 +187,8 @@ function visible() {
 
 function table() {
   rows = visible();
-  const key = sortKey === "label" ? (o => (labels[o.object_id] || {}).class || "") : (o => o[sortKey] ?? -Infinity);
+  const key = sortKey === "label" ? (o => (labels[o.object_id] || {}).class || "")
+    : sortKey === "absvol" ? (o => Math.abs(o.volume_m3)) : (o => o[sortKey] ?? -Infinity);
   rows.sort((a, b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * sortDir; });
   const tb = $("objs"); tb.textContent = "";
   const frag = document.createDocumentFragment();
@@ -338,7 +341,7 @@ map.addEventListener("touchmove", e => { if (pinch && e.touches.length === 2) { 
 map.addEventListener("touchend", () => { if (pinch) { pinch = null; drag = null; } });
 
 // 3-D scene (as the exploration's M3C2 page) ------------------------------------------------------------------------
-let S = null, mode = "sig", psize = 2, zx = 1, showMask = true, loading = null;
+let S = null, mode = "obj", psize = 2, zx = 1, showMask = true, loading = null;
 const canv = [0, 1, 2, 3, 4].map(k => $("c" + k));
 let R = null, scenes, cam, controls, objs = [null, null, null, null, null], masks = [null, null], tex = {};
 function init3d() {
@@ -363,7 +366,7 @@ async function loadScene(o) {
     $("smsg").textContent = `Object ${o.n} has no 3-D scene; only the review sample does (rows marked 3D, dashed squares on the map).`;
     return;
   }
-  if (S && S.scene_id === o.scene_id) { refreshChange(); return; }
+  if (S && S.scene_id === o.scene_id) { refreshChange(); frameOn(o); return; }
   const id = o.scene_id; loading = id;
   $("smsg").hidden = false; $("smsg").textContent = `Loading scene ${id}…`;
   try {
@@ -378,7 +381,7 @@ async function loadScene(o) {
   }
   if (!init3d()) return;
   $("smsg").hidden = true; $("panels").hidden = false;
-  build(false); resize3d();
+  build(false); resize3d(); frameOn(o);
 }
 
 function cloud(key, colorFn) {
@@ -437,6 +440,23 @@ function build(keepCam) {
   $("imgdesc").textContent = `Photos: 2011 — ${S.imgdesc_leg}; 3DEP — ${S.imgdesc_mod}.`;
   refreshChange();
 }
+function frameOn(o) {                 // camera on the selected object: its bounds and its core points' mean height
+  if (!S || !R) return;
+  const h = S.size_m / 2, k = S.idx[o.object_id] || 0;
+  const x0 = OV.xmin + o.bb[0] - S.x0 - h, x1 = OV.xmin + o.bb[2] - S.x0 - h;
+  const y0 = OV.ymin + o.bb[1] - S.y0 - h, y1 = OV.ymin + o.bb[3] - S.y0 - h;
+  let z = S.zrange[1] / 2;
+  if (k) {
+    const p = i16(S.core), ob = u16(S.core_obj); let s = 0, n = 0;
+    for (let i = 0; i < ob.length; i++) if (ob[i] === k) { s += p[3 * i + 2] / 20; n++; }
+    if (n) z = s / n;
+  }
+  const tx = (x0 + x1) / 2, tz = -(y0 + y1) / 2, ty = z * zx;
+  const d = Math.min(S.size_m * 1.2, Math.max(40, 2.5 * Math.max(x1 - x0, y1 - y0)));
+  cam.position.set(tx - d * .55, ty + d * .75, tz + d * .75);
+  controls.forEach(c => { c.target.set(tx, ty, tz); c.update(); });
+  draw3d();
+}
 function changeColour(i, d, lod, ok, ob, ero, dep, selk) {
   if (mode === "obj") {
     const k = ob[i]; if (!k) return null;
@@ -475,7 +495,13 @@ function draw3d() { if (!R) return; const bg = new THREE.Color(css("--scene") ||
 function resize3d() { if (!R) return; R.forEach((r, k) => r.setSize(canv[k].clientWidth, canv[k].clientWidth, false)); cam.aspect = 1; cam.updateProjectionMatrix(); draw3d(); }
 const setMode = m => { mode = m; ["sig", "all", "obj"].forEach(k => $("m-" + k).setAttribute("aria-pressed", k === m)); refreshChange(); };
 ["sig", "all", "obj"].forEach(m => $("m-" + m).addEventListener("click", () => setMode(m)));
-$("mask").addEventListener("change", e => { showMask = e.target.checked; refreshChange(); });
+function setMask(on) {
+  showMask = on; $("mask").checked = on;
+  document.querySelectorAll("button.ovl").forEach(b => b.setAttribute("aria-pressed", on));
+  refreshChange();
+}
+$("mask").addEventListener("change", e => setMask(e.target.checked));
+document.querySelectorAll("button.ovl").forEach(b => b.addEventListener("click", () => setMask(!showMask)));
 $("psize").addEventListener("input", e => { psize = +e.target.value; objs.slice(0, 3).forEach(p => p && (p.material.size = psize)); draw3d(); });
 $("zx").addEventListener("input", e => { zx = +e.target.value; if (S && R) build(true); });
 
