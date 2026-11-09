@@ -2,6 +2,9 @@
 
 ndvi(cell, year)  NAIP NDVI on the cell's 1 m grid (Microsoft Planetary Computer; old naip_ndvi.py), every scene
                   touching the cell mosaicked in STAC order; NaN where no NAIP covers it. Row 0 = south.
+ortho(bounds, source, px, key)
+                  RGB orthophoto of a square in EPSG:6345 as a north-up JPEG (old site_imagery.py): source
+                  "in2011" (IndianaMap statewide orthophotos 2011, leaf-off) or "naip<year>".
 """
 
 import random
@@ -32,7 +35,11 @@ def _json(method: str, url: str, **kw):
 
 
 def naip_items(cell: str, year: int) -> list[dict]:
-    xmin, ymin, xmax, ymax = grid.cell_bounds(cell)
+    return _naip_search(grid.cell_bounds(cell), year)
+
+
+def _naip_search(bounds, year: int) -> list[dict]:
+    xmin, ymin, xmax, ymax = bounds
     lon, lat = crs.to_lonlat([xmin, xmax, xmin, xmax], [ymin, ymin, ymax, ymax])
     body = {
         "collections": ["naip"],
@@ -101,6 +108,78 @@ def fetch_ndvi(cell: str, year: int):
             ds.update_tags(scenes=",".join(it["id"] for it in items))
     log.info("NDVI %s %d from %d scenes", cell, year, len(items))
     return out
+
+
+IN2011 = "https://di-ingov.img.arcgis.com/arcgis/rest/services/DynamicWebMercator/Indiana_2011_Imagery/ImageServer"
+IN2011_INFO = "IndianaMap statewide orthophotos 2011, leaf-off, 12 in"
+
+
+def ortho_path(source: str, key: str):
+    return paths.cache_ancillary(f"ortho/{source}") / f"{key}.jpg"
+
+
+def ortho(bounds, source: str, px: int, key: str):
+    """(path, description) of the cached orthophoto of a square (xmin, ymin, xmax, ymax in EPSG:6345), px x px,
+    north up; fetched on first use. The description names the source and, for NAIP, the image dates."""
+    import io as _io
+
+    from PIL import Image
+
+    out = ortho_path(source, key)
+    info = out.with_suffix(".txt")
+    if out.exists() and info.exists():
+        return out, info.read_text().strip()
+    if source == "in2011":
+        q = {
+            "bbox": ",".join(f"{v:.2f}" for v in bounds),
+            "bboxSR": crs.PROJECT_EPSG,
+            "imageSR": crs.PROJECT_EPSG,
+            "size": f"{px},{px}",
+            "format": "jpg",
+            "bandIds": "0,1,2",
+            "f": "image",
+        }
+        r = http.session().get(f"{IN2011}/exportImage", params=q, timeout=120)
+        r.raise_for_status()
+        img, desc = Image.open(_io.BytesIO(r.content)).convert("RGB"), IN2011_INFO
+    elif source.startswith("naip"):
+        a, dates = _naip_rgb(bounds, int(source[4:]), px)
+        img, desc = Image.fromarray(a), f"NAIP {', '.join(dates)}, leaf-on, 0.6 m"
+    else:
+        raise ValueError(f"unknown orthophoto source {source!r}")
+    with atomic_path(out) as tmp:
+        img.save(tmp, format="JPEG", quality=72)
+    with atomic_path(info) as tmp:
+        tmp.write_text(desc + "\n")
+    return out, desc
+
+
+def _naip_rgb(bounds, year: int, px: int):
+    import rasterio
+    from rasterio.transform import from_bounds
+    from rasterio.warp import Resampling, reproject
+
+    items = _naip_search(bounds, year)
+    if not items:
+        raise RuntimeError(f"no NAIP {year} over {bounds}")
+    token = _json("GET", TOKEN)["token"]
+    dst = np.zeros((3, px, px), np.uint8)
+    t = from_bounds(*bounds, px, px)
+    with rasterio.Env(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR"):
+        for it in items:
+            with rasterio.open(f"{it['assets']['image']['href']}?{token}") as src:
+                for b in range(3):
+                    reproject(
+                        rasterio.band(src, b + 1),
+                        dst[b],
+                        src_nodata=0,
+                        dst_transform=t,
+                        dst_crs=crs.PROJECT_CRS,
+                        dst_nodata=0,
+                        init_dest_nodata=False,
+                        resampling=Resampling.bilinear,
+                    )
+    return dst.transpose(1, 2, 0), sorted({it["properties"]["datetime"][:10] for it in items})
 
 
 def ndvi(cell: str, year: int) -> np.ndarray:

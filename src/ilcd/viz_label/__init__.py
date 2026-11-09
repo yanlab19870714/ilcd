@@ -1,10 +1,13 @@
-"""viz_label: pages for looking at change and labelling it.
+"""viz_label: the review page of a site, and its labels (docs/design.md section 7.2).
 
-Owns:   labels (GeoJSON, EPSG:4326)
-Reads:  objects, points, imagery
+Owns:   scenes (GeoParquet), labels (GeoJSON, EPSG:4326)
+Reads:  objects, object_members, m3c2, points + model, orthophotos (data_src.ancillary)
 
-3D before/after scenes per object (terrain meshes draped with same-year orthophotos), a BEV map page with polygon
-drawing, and QGIS project export. All three write the same labels file.
+sample.py    review sample of objects, stratified, and their scene squares
+scene.py     packed points, terrain grids and photos of one scene
+overview.py  site map image from the M3C2 cells
+page.py      index.html from templates/site.html with the objects embedded
+labels.py    labels copied from the page -> contract labels
 
-Planned files: scenes.py, imagery.py, mesh.py, pages.py, templates/ (scene3d.html, bev.html), qgis/.
+Blind labelling (polygons drawn without the objects) and QGIS export: refactor step 5.
 """

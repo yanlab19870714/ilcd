@@ -199,8 +199,21 @@ change:
     min_height_m: 2.5             # old: big_change
     min_area_m2: 50.0
 
-viz_label:
-  scene_points: 45000             # old: m3c2_view_data N_PTS
+viz_label:                        # docs/design.md section 7.2
+  review:                         # which objects get a 3-D scene
+    area_bins_m2: [100.0, 1000.0] # bin edges: 25-100, 100-1000, >= 1000 m2
+    near_water_m: 50.0            # dist_water_m at or below this is "near"
+    per_stratum: 10               # 2 kinds x 3 area bins x 2 = 12 strata, so up to 120 scenes
+    seed: 0
+  scene:
+    min_size_m: 150.0
+    margin_m: 30.0                # around the object's extent
+    points: 45000                 # per epoch and per core-point set; old: m3c2_view_data N_PTS
+    terrain_res_m: 1.5            # old: dc_view_data TERRAIN_RES
+    terrain_gap_m: 15.0           # grid cells farther than this from ground or water stay empty
+    image_px: 1024                # orthophoto side
+  overview:
+    res_m: 4.0
+    ramp_m: 1.0                   # |M3C2 distance| at full colour
   imagery:
-    legacy_year: 2011             # IndianaMap leaf-off orthophotos
-    modern_source: naip
+    naip_years: [2016, 2018, 2020, 2022]  # Indiana NAIP; the one nearest the 3DEP batch year is used

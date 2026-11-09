@@ -45,6 +45,7 @@ repository root:
 sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/snakemake.sh statewide catalog   # once, before any region
 sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/snakemake.sh carroll             # a region, up to model and eval
 sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/snakemake.sh eastfork_doug change  # change products of a site
+sbatch -A $ILCD_SLURM_ACCOUNT --export=ALL jobs/snakemake.sh eastfork_doug viz     # its review page (after change)
 ```
 
 The statewide stage fetches every legacy file (42,450 files, 0.48 TB), concatenates their headers, runs the datum

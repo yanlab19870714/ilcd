@@ -161,6 +161,9 @@ def main(argv=None):
     from .change import cli as change_cli
 
     change_cli.register(sub)
+    from .viz_label import cli as viz_label_cli
+
+    viz_label_cli.register(sub)
     args = ap.parse_args(argv)
     return args.fn(args) or 0
 

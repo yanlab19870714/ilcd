@@ -1,0 +1,15 @@
+{
+  "contract": "scenes", "version": 1, "kind": "vector", "owner": "viz_label", "status": "draft",
+  "description": "3-D review scenes of one site: one square per sampled change object (docs/design.md section 7.2).",
+  "path": "sites/{site}/viz/scenes.parquet",
+  "key": ["scene_id"],
+  "geometry": {"type": "Polygon", "crs": "EPSG:6345"},
+  "columns": [
+    {"name": "scene_id", "type": "string", "description": "s<nnn>, in sampling order"},
+    {"name": "object_id", "type": "string", "description": "The sampled object the scene is centred on"},
+    {"name": "stratum", "type": "string", "description": "<kind>/<area bin>/<near|far>"},
+    {"name": "size_m", "type": "float32", "unit": "m"},
+    {"name": "cells", "type": "list<string>", "description": "1 km cells the square touches"},
+    {"name": "geometry", "type": "geometry"}
+  ]
+}

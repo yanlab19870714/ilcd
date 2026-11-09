@@ -1084,6 +1084,23 @@ Geometry: Polygon in EPSG:4326
 | `blind` | bool |  |  | Annotator did not see the method's output (independent ground truth) |
 | `note` | string |  | yes |  |
 
+### `scenes.v1` (vector, owner viz_label, draft)
+
+3-D review scenes of one site: one square per sampled change object (docs/design.md section 7.2).
+
+Path: `sites/{site}/viz/scenes.parquet`  
+Key: `scene_id`  
+Geometry: Polygon in EPSG:6345  
+
+| column | type | unit | null | description |
+|---|---|---|---|---|
+| `scene_id` | string |  |  | s<nnn>, in sampling order |
+| `object_id` | string |  |  | The sampled object the scene is centred on |
+| `stratum` | string |  |  | <kind>/<area bin>/<near|far> |
+| `size_m` | float32 | m |  |  |
+| `cells` | list<string> |  |  | 1 km cells the square touches |
+| `geometry` | geometry |  |  |  |
+
 ## config
 
 ### `delivery_overrides.v1` (json, owner config, draft)

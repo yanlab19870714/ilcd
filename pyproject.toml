@@ -20,7 +20,7 @@ ilcd = "ilcd.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-ilcd = ["schemas/*.json", "config/*.yaml"]
+ilcd = ["schemas/*.json", "config/*.yaml", "viz_label/templates/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

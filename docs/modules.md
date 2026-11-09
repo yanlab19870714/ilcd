@@ -20,7 +20,7 @@ data_src ──► flightlines ──► refs ──► align ──► eval
 | `align` | Fit and apply the correction model | scope | `model` | **stage 1 implemented**; stage 2, horizontal shift, overlap ties, apply: later |
 | `eval` | Cross-validation, overlap check, injection, status, change scores | scope, site | `cv`, `status`, `injection`, `overlap_check`, `change_eval` | **cv implemented**; the rest: later |
 | `change` | DoD, M3C2, change objects | cell, site | `dod`, `m3c2`, `objects` | planned (step 4) |
-| `viz_label` | 3D scenes, BEV page, QGIS export, labels | site | `labels`, pages | planned (step 4) |
+| `viz_label` | Site review page with 3-D scenes, labels | site | `scenes`, `labels`, pages | **site page and label import implemented**; blind labelling, QGIS: step 5 |
 | `baselines` | Other methods, written to the same contracts | scope, site | as align/change | planned (step 5) |
 
 ## Rules every module follows

@@ -267,6 +267,35 @@ the cell padded by `max_distance_m`, keeping core points inside the cell. Object
 so that objects cross cell borders. M3C2 uses py4dgeo 1.2.1, installed in the main environment (its pip dependencies leave numpy alone; the
 exploration's separate environment is not needed).
 
+### 7.2 Viewing and labelling (viz_label)
+
+**One page per site, two levels.** A site has thousands of objects (eastfork_doug: 3,242). Covering every object
+with a 3-D window takes 800-1,400 windows of 150-300 m, about 1 MB each, more than one page can carry. So:
+
+- **All objects** are on the page: a site overview map (M3C2 distance over a 3DEP hillshade, object outlines on
+  top) and a table with every object, its numbers and a label editor.
+- **3-D scenes** (as the exploration's M3C2 page: 2011 points, 3DEP points, M3C2 core points, both grounds draped
+  with same-period orthophotos, synced cameras) exist for a **review sample** of objects, stratified by kind
+  (loss, gain) x area (`viz_label.review.area_bins_m2`) x distance to water (`near_water_m`), up to
+  `per_stratum` objects per stratum, drawn with a fixed seed. One scene per sampled object: a square centred on
+  it, `scene.min_size_m` or the object's extent plus `2 x scene.margin_m`, whichever is larger. Other objects
+  inside the square are shown too.
+
+**Files** (`sites/<site>/viz/`): `scenes.parquet` (contract `scenes`), `scenes/<scene_id>.json` (packed points,
+grids and images of one scene), `overview.png` with `overview.json` (its bounds), and `index.html`, which embeds the
+objects and loads the other files by relative URL. The folder is published as is (a multi-file web page) or served
+by any static server; opened as a local file, the browser blocks the scene files and the page says so.
+
+**Imagery.** 2011: IndianaMap statewide orthophotos 2011 (leaf-off; same state programme as the 2011 lidar). 3DEP:
+NAIP of the year nearest to the 3DEP batch's year (`viz_label.imagery.naip_years`). Both are requested for the
+scene square in EPSG:6345 and cached under `cache/ancillary/ortho/`. The photos are not from the flight days.
+
+**Labels.** The page keeps labels in the browser (per viewer) and copies them out as a `labels` GeoJSON (one feature
+per object, its outline as geometry, `tool = web3d`, `blind = false`). `ilcd viz_label import-labels <site> <file>`
+validates such a file and merges it into `sites/<site>/labels/labels.geojson` by `label_id`
+(`<object_id>:<annotator>`; a later label of the same annotator replaces the earlier one). Blind labelling (polygons
+drawn without the objects) and QGIS export are refactor step 5.
+
 ## 8. Modules and the file-contract rule
 
 Modules communicate through files that follow a versioned contract in `src/ilcd/schemas/`. Each contract has one

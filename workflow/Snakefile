@@ -32,7 +32,7 @@ if SITE is not None:
 include: "rules/statewide.smk"      # catalogs, every legacy file, headers, datum, deliveries (once)
 include: "rules/upper.smk"          # data_src -> flightlines -> refs -> align -> eval (refactor step 2)
 include: "rules/change.smk"         # DoD, M3C2, objects of a site (refactor step 4)
-# include: "rules/viz_label.smk"
+include: "rules/viz_label.smk"      # review page of a site (refactor step 4)
 # include: "rules/baselines.smk"     (refactor step 5)
 
 
